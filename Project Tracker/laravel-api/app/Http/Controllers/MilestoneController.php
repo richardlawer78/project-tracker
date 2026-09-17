@@ -11,11 +11,9 @@ class MilestoneController extends Controller
     public function index(Request $request): JsonResponse
     {
         $milestones = Milestone::with('project:id,name')
-            ->when($request->filled('project_id'), fn ($query) =>
-                $query->where('project_id', $request->project_id)
+            ->when($request->filled('project_id'), fn ($query) => $query->where('project_id', $request->project_id)
             )
-            ->when($request->filled('status'), fn ($query) =>
-                $query->where('status', $request->status)
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status)
             )
             ->latest()
             ->paginate(15);
@@ -25,7 +23,7 @@ class MilestoneController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $milestone = Milestone::create($this->validatedData($request));
+        $milestone = Milestone::create($this->normalized($this->validatedData($request)));
 
         return response()->json(
             $milestone->load('project:id,name'),
@@ -42,7 +40,7 @@ class MilestoneController extends Controller
 
     public function update(Request $request, Milestone $milestone): JsonResponse
     {
-        $milestone->update($this->validatedData($request));
+        $milestone->update($this->normalized($this->validatedData($request)));
 
         return response()->json(
             $milestone->fresh()->load('project:id,name')
@@ -62,8 +60,18 @@ class MilestoneController extends Controller
             'project_id' => ['required', 'exists:projects,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date'],
-            'status' => ['nullable', 'in:pending,in-progress,completed'],
+            'status' => ['nullable', 'in:upcoming,pending,in-progress,completed'],
         ]);
+    }
+
+    private function normalized(array $data): array
+    {
+        $data['due_date'] = $data['due_date'] ?? $data['date'] ?? null;
+        $data['date'] = $data['date'] ?? $data['due_date'];
+        $data['status'] = $data['status'] ?? 'upcoming';
+
+        return $data;
     }
 }

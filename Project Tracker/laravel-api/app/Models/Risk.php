@@ -13,11 +13,13 @@ class Risk extends Model
     protected $fillable = [
         'project_id',
         'title',
+        'category',
         'description',
         'probability',
         'impact',
         'status',
         'mitigation',
+        'owner_id',
     ];
 
     public function project(): BelongsTo

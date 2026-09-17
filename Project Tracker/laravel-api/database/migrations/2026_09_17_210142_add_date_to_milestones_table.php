@@ -8,15 +8,16 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('milestones', function (Blueprint $table) {
-            $table->date('date')->nullable()->after('name');
-        });
+        if (! Schema::hasColumn('milestones', 'date')) {
+            Schema::table('milestones', function (Blueprint $table) {
+                $table->date('date')->nullable()->after('name');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('milestones', function (Blueprint $table) {
-            $table->dropColumn('date');
-        });
+        // The date column may have been created by the original
+        // create_milestones_table migration, so don't remove it here.
     }
 };

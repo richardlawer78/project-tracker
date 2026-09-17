@@ -14,6 +14,7 @@ class Milestone extends Model
         'project_id',
         'name',
         'description',
+        'date',
         'due_date',
         'status',
     ];
@@ -21,6 +22,7 @@ class Milestone extends Model
     protected function casts(): array
     {
         return [
+            'date' => 'date',
             'due_date' => 'date',
         ];
     }

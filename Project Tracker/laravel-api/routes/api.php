@@ -1,38 +1,38 @@
 <?php
 
-use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\TaskController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-
-use App\Http\Controllers\SprintController;
-use App\Http\Controllers\MilestoneController;
-use App\Http\Controllers\RiskController;
 use App\Http\Controllers\BacklogItemController;
-use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\BudgetItemController;
-use App\Http\Controllers\TimeEntryController;
-use App\Http\Controllers\ProjectResourceController;
-use App\Http\Controllers\StakeholderController;
-use App\Http\Controllers\KickoffController;
-use App\Http\Controllers\KickoffObjectiveController;
-use App\Http\Controllers\DorDodItemController;
-use App\Http\Controllers\TestCaseController;
 use App\Http\Controllers\ChangeLogEntryController;
-use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\LessonLearnedController;
 use App\Http\Controllers\ChatChannelController;
 use App\Http\Controllers\ChatMessageController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\DorDodItemController;
+use App\Http\Controllers\KickoffController;
+use App\Http\Controllers\KickoffObjectiveController;
+use App\Http\Controllers\LessonLearnedController;
+use App\Http\Controllers\MilestoneController;
+use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectResourceController;
+use App\Http\Controllers\RiskController;
+use App\Http\Controllers\SprintController;
+use App\Http\Controllers\StakeholderController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TestCaseController;
+use App\Http\Controllers\TimeEntryController;
+use App\Http\Controllers\WorkflowController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-Route::apiResource('projects', ProjectController::class);
-Route::apiResource('tasks', TaskController::class);
-Route::apiResource('sprints', SprintController::class);
-Route::apiResource('milestones', MilestoneController::class);
-Route::apiResource('risks', RiskController::class);
+Route::apiResource('projects', ProjectController::class)->names('api.projects');
+Route::apiResource('tasks', TaskController::class)->names('api.tasks');
+Route::apiResource('sprints', SprintController::class)->names('api.sprints');
+Route::apiResource('milestones', MilestoneController::class)->names('api.milestones');
+Route::apiResource('risks', RiskController::class)->names('api.risks');
+
 Route::apiResource('backlog-items', BacklogItemController::class);
 Route::apiResource('workflows', WorkflowController::class);
 Route::apiResource('budget-items', BudgetItemController::class);

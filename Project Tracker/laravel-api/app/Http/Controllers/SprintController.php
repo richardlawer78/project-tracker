@@ -11,11 +11,9 @@ class SprintController extends Controller
     public function index(Request $request): JsonResponse
     {
         $sprints = Sprint::with('project:id,name')
-            ->when($request->filled('project_id'), fn ($query) =>
-                $query->where('project_id', $request->project_id)
+            ->when($request->filled('project_id'), fn ($query) => $query->where('project_id', $request->project_id)
             )
-            ->when($request->filled('status'), fn ($query) =>
-                $query->where('status', $request->status)
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status)
             )
             ->latest()
             ->paginate(15);
@@ -62,8 +60,8 @@ class SprintController extends Controller
             'project_id' => ['required', 'exists:projects,id'],
             'name' => ['required', 'string', 'max:255'],
             'goal' => ['nullable', 'string'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'status' => ['nullable', 'in:planned,active,completed'],
         ]);
     }

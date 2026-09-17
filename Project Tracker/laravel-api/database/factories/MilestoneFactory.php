@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Milestone;
+use App\Models\Project;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +19,7 @@ class MilestoneFactory extends Factory
     public function definition(): array
     {
         return [
-            'project_id' => \App\Models\Project::factory(), 'name' => fake()->sentence(3), 'date' => now()->addMonth(), 'status' => 'upcoming',
+            'project_id' => Project::factory(), 'name' => fake()->sentence(3), 'date' => now()->addMonth(), 'due_date' => now()->addMonth(), 'status' => 'upcoming',
         ];
     }
 }

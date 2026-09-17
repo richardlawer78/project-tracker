@@ -11,6 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('sprints')) {
+            Schema::table('sprints', function (Blueprint $table) {
+                if (! Schema::hasColumn('sprints', 'total_points')) {
+                    $table->unsignedInteger('total_points')->default(0);
+                }
+                if (! Schema::hasColumn('sprints', 'completed_points')) {
+                    $table->unsignedInteger('completed_points')->default(0);
+                }
+            });
+
+            return;
+        }
+
         Schema::create('sprints', function (Blueprint $table) {
             $table->id();
             $table->foreignId('project_id')->constrained()->cascadeOnDelete();
