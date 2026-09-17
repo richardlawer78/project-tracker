@@ -8,9 +8,25 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Risk extends Model
 {
-    /** @use HasFactory<\Database\Factories\RiskFactory> */
     use HasFactory;
-    protected $guarded = [];
-    public function project(): BelongsTo { return $this->belongsTo(Project::class); }
-    public function owner(): BelongsTo { return $this->belongsTo(User::class, 'owner_id'); }
+
+    protected $fillable = [
+        'project_id',
+        'title',
+        'description',
+        'probability',
+        'impact',
+        'status',
+        'mitigation',
+    ];
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function owner(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'owner_id');
+    }
 }

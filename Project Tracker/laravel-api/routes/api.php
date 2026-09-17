@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\SprintController;
 use App\Http\Controllers\MilestoneController;
+use App\Http\Controllers\RiskController;
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
@@ -15,3 +16,4 @@ Route::apiResource('projects', ProjectController::class);
 Route::apiResource('tasks', TaskController::class);
 Route::apiResource('sprints', SprintController::class);
 Route::apiResource('milestones', MilestoneController::class);
+Route::apiResource('risks', RiskController::class);
