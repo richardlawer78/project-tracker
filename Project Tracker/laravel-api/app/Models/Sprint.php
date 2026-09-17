@@ -1,4 +1,4 @@
- <?php
+<?php
 
 namespace App\Models;
 
@@ -21,15 +21,12 @@ class Sprint extends Model
         'completed_points',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'start_date' => 'date',
-            'end_date' => 'date',
-            'total_points' => 'integer',
-            'completed_points' => 'integer',
-        ];
-    }
+    protected $casts = [
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'total_points' => 'integer',
+        'completed_points' => 'integer',
+    ];
 
     public function project(): BelongsTo
     {
