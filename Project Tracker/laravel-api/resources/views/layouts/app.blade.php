@@ -197,5 +197,112 @@
 
 </main>
 
+
+<script>
+(function () {
+    const sidebarId = 'project-sidebar';
+    const storageKey = 'project-tracker-sidebar-scroll';
+
+    function getSidebar() {
+        return document.getElementById(sidebarId);
+    }
+
+    function saveSidebarPosition() {
+        const sidebar = getSidebar();
+
+        if (!sidebar || window.innerWidth <= 900) {
+            return;
+        }
+
+        sessionStorage.setItem(
+            storageKey,
+            String(sidebar.scrollTop)
+        );
+    }
+
+    function restoreSidebarPosition() {
+        const sidebar = getSidebar();
+
+        if (!sidebar || window.innerWidth <= 900) {
+            return;
+        }
+
+        const savedPosition = sessionStorage.getItem(storageKey);
+
+        if (savedPosition !== null) {
+            sidebar.scrollTop = parseInt(savedPosition, 10);
+        }
+    }
+
+    function keepActiveLinkVisible() {
+        const sidebar = getSidebar();
+
+        if (!sidebar || window.innerWidth <= 900) {
+            return;
+        }
+
+        const activeLink = sidebar.querySelector('a.active');
+
+        if (!activeLink) {
+            return;
+        }
+
+        const sidebarTop = sidebar.scrollTop;
+        const sidebarHeight = sidebar.clientHeight;
+
+        const linkTop = activeLink.offsetTop;
+        const linkBottom = linkTop + activeLink.offsetHeight;
+
+        const padding = 25;
+
+        if (linkTop < sidebarTop + padding) {
+            sidebar.scrollTop = Math.max(
+                0,
+                linkTop - padding
+            );
+        }
+
+        if (linkBottom > sidebarTop + sidebarHeight - padding) {
+            sidebar.scrollTop =
+                linkBottom - sidebarHeight + padding;
+        }
+
+        saveSidebarPosition();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+
+        const sidebar = getSidebar();
+
+        if (!sidebar) {
+            return;
+        }
+
+        restoreSidebarPosition();
+
+        sidebar.addEventListener('scroll', function () {
+            saveSidebarPosition();
+        });
+
+        sidebar.querySelectorAll('a').forEach(function (link) {
+            link.addEventListener('click', function () {
+                saveSidebarPosition();
+            });
+        });
+
+        /*
+         * Wait until the page has finished rendering.
+         * This changes only the sidebar's scroll position.
+         */
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                keepActiveLinkVisible();
+            });
+        });
+    });
+})();
+</script>
+
+
 </body>
 </html>
