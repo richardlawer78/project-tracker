@@ -6,12 +6,14 @@ use App\Models\ChatChannel;
 use App\Models\ChatMessage;
 use App\Models\Milestone;
 use App\Models\Project;
+use App\Models\ProjectResource;
 use App\Models\Risk;
 use App\Models\Sprint;
 use App\Models\Task;
 use App\Models\User;
 use App\Support\TrackerFeatures;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -19,21 +21,87 @@ class TrackerController extends Controller
 {
     public function dashboard()
     {
+        $today = today();
+        $weekStart = $today->copy()->startOfWeek(Carbon::SUNDAY);
+        $lastWeekStart = $weekStart->copy()->subWeek();
+        $months = collect(range(5, 0))->map(fn (int $offset) => $today->copy()->subMonths($offset)->startOfMonth());
+        $projectCount = Project::query()->count();
+        $taskCount = Task::query()->count();
+        $completedTasks = Task::query()->where('status', 'completed')->count();
+
         return view('dashboard', [
-            'projectCount' => Project::count(),
-            'taskCount' => Task::count(),
-            'completedTasks' => Task::where('status', 'completed')->count(),
-            'sprintCount' => Sprint::count(),
+            'projectCount' => $projectCount,
+            'newProjectCount' => Project::query()->whereBetween('created_at', [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()])->count(),
+            'activeProjectCount' => Project::query()->where('status', 'in-progress')->count(),
+            'pendingProjectCount' => Project::query()->whereIn('status', ['planning', 'on-hold'])->count(),
+            'completedProjectCount' => Project::query()->where('status', 'completed')->count(),
+            'taskCount' => $taskCount,
+            'completedTasks' => $completedTasks,
+            'completionRate' => $taskCount ? (int) round(($completedTasks / $taskCount) * 100) : 0,
+            'sprintCount' => Sprint::query()->where('status', 'active')->count(),
             'riskCount' => Risk::query()->where('status', 'open')->count(),
-            'projects' => Project::latest()->take(5)->get(),
-            'tasks' => Task::with('project')->latest()->take(6)->get(),
-            'milestones' => Milestone::with('project')->latest()->take(5)->get(),
+            'projects' => Project::query()
+                ->withCount(['tasks', 'tasks as completed_tasks_count' => fn ($query) => $query->where('status', 'completed'), 'projectResources'])
+                ->latest()->take(6)->get(),
+            'tasks' => Task::query()->with(['project:id,name', 'assignee:id,name'])->orderByRaw('due_date asc nulls last')->latest()->take(6)->get(),
+            'milestones' => Milestone::query()->with('project:id,name')->whereDate('due_date', '>=', today())
+                ->orderBy('due_date')->take(5)->get(),
+            'risks' => Risk::query()->with('project:id,name')->where('status', 'open')->latest()->take(4)->get(),
+            'teamMembers' => ProjectResource::query()->with([
+                'user' => fn ($query) => $query->select('id', 'name', 'job_title', 'avatar', 'availability_percent')->withCount('assignedTasks'),
+                'project:id,name',
+            ])->latest()->take(5)->get(),
+            'monthlyTarget' => [
+                'new' => Project::query()->whereBetween('created_at', [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()])->count(),
+                'completed' => Project::query()->where('status', 'completed')->count(),
+                'active' => Project::query()->whereIn('status', ['in-progress', 'planning', 'on-hold'])->count(),
+                'total' => $projectCount,
+            ],
+            'activityMonths' => $months->map(fn (Carbon $month) => $month->format('M'))->all(),
+            'projectActivity' => $months->map(fn (Carbon $month) => Project::query()->whereBetween('created_at', [$month, $month->copy()->endOfMonth()])->count())->all(),
+            'taskActivity' => $months->map(fn (Carbon $month) => Task::query()->whereBetween('created_at', [$month, $month->copy()->endOfMonth()])->count())->all(),
+            'thisWeekTasks' => collect(range(0, 6))->map(fn (int $day) => Task::query()->whereDate('created_at', $weekStart->copy()->addDays($day))->count())->all(),
+            'lastWeekTasks' => collect(range(0, 6))->map(fn (int $day) => Task::query()->whereDate('created_at', $lastWeekStart->copy()->addDays($day))->count())->all(),
         ]);
     }
 
-    public function projects()
+    public function projects(Request $request)
     {
-        return view('projects.index', ['projects' => Project::latest()->paginate(12)]);
+        $search = trim((string) $request->query('search'));
+
+        return view('projects.index', [
+            'projects' => Project::query()
+                ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+                ->latest()->paginate(12)->withQueryString(),
+        ]);
+    }
+
+    public function globalSearch(Request $request)
+    {
+        $data = $request->validate(['query' => ['nullable', 'string', 'max:100']]);
+        $term = trim((string) ($data['query'] ?? ''));
+
+        if (mb_strlen($term) < 2) {
+            return response()->json(['results' => []]);
+        }
+
+        $needle = Str::lower($term);
+        $pages = collect($this->searchablePages())->filter(fn (array $page) => Str::contains(Str::lower(implode(' ', [$page['title'], $page['description'], $page['keywords']])), $needle))
+            ->map(fn (array $page) => ['category' => 'Pages', 'type' => 'Page', 'title' => $page['title'], 'meta' => $page['description'], 'url' => route($page['route'])]);
+        $projects = Project::query()->where('name', 'like', '%'.$term.'%')->limit(5)->get()->map(fn (Project $project) => ['category' => 'Data', 'type' => 'Project', 'title' => $project->name, 'meta' => ucfirst($project->status), 'url' => route('projects.show', $project)]);
+        $tasks = Task::query()->with('project:id,name')->where('title', 'like', '%'.$term.'%')->limit(5)->get()->map(fn (Task $task) => ['category' => 'Data', 'type' => 'Task', 'title' => $task->title, 'meta' => $task->project?->name ?? 'No project', 'url' => route('web.tasks.edit', $task->id)]);
+        $sprints = Sprint::query()->with('project:id,name')->where('name', 'like', '%'.$term.'%')->limit(5)->get()->map(fn (Sprint $sprint) => ['category' => 'Data', 'type' => 'Sprint', 'title' => $sprint->name, 'meta' => $sprint->project?->name ?? 'No project', 'url' => route('web.sprints.edit', $sprint->id)]);
+        $milestones = Milestone::query()->with('project:id,name')->where('name', 'like', '%'.$term.'%')->limit(5)->get()->map(fn (Milestone $milestone) => ['category' => 'Data', 'type' => 'Milestone', 'title' => $milestone->name, 'meta' => $milestone->project?->name ?? 'No project', 'url' => route('web.milestones.edit', $milestone->id)]);
+        $risks = Risk::query()->with('project:id,name')->where('title', 'like', '%'.$term.'%')->limit(5)->get()->map(fn (Risk $risk) => ['category' => 'Data', 'type' => 'Risk', 'title' => $risk->title, 'meta' => $risk->project?->name ?? 'No project', 'url' => route('web.risks.edit', $risk->id)]);
+
+        return response()->json(['results' => $pages->concat($projects)->concat($tasks)->concat($sprints)->concat($milestones)->concat($risks)->values()]);
+    }
+
+    private function searchablePages(): array
+    {
+        return [
+            ['title' => 'Dashboard', 'description' => 'Portfolio overview', 'keywords' => 'overview home', 'route' => 'dashboard'], ['title' => 'Projects', 'description' => 'Manage projects', 'keywords' => 'project portfolio', 'route' => 'projects.index'], ['title' => 'Kick-Off', 'description' => 'Project initiation', 'keywords' => 'kickoff kick off', 'route' => 'web.kickoff.index'], ['title' => 'Stakeholders', 'description' => 'Stakeholder directory', 'keywords' => 'stakeholder people', 'route' => 'web.stakeholders.index'], ['title' => 'Sprints', 'description' => 'Agile sprint planning', 'keywords' => 'sprint agile', 'route' => 'web.sprints.index'], ['title' => 'Backlog', 'description' => 'Product backlog', 'keywords' => 'agile stories', 'route' => 'web.backlog.index'], ['title' => 'DoR / DoD', 'description' => 'Definition of ready and done', 'keywords' => 'definition ready done dor dod', 'route' => 'web.definitions.index'], ['title' => 'Tasks', 'description' => 'Project tasks', 'keywords' => 'task work', 'route' => 'web.tasks.index'], ['title' => 'Kanban', 'description' => 'Task board', 'keywords' => 'board task workflow', 'route' => 'kanban'], ['title' => 'Workflows', 'description' => 'Project workflows', 'keywords' => 'workflow process', 'route' => 'web.workflows.index'], ['title' => 'Team', 'description' => 'Project resources', 'keywords' => 'team resources people', 'route' => 'web.team.index'], ['title' => 'Time Tracking', 'description' => 'Track project time', 'keywords' => 'time hours', 'route' => 'web.time.index'], ['title' => 'Budget', 'description' => 'Project budget', 'keywords' => 'cost finance', 'route' => 'web.budget.index'], ['title' => 'Milestones', 'description' => 'Project milestones', 'keywords' => 'milestone deadline', 'route' => 'web.milestones.index'], ['title' => 'Gantt', 'description' => 'Project schedule', 'keywords' => 'gantt timeline schedule', 'route' => 'gantt'], ['title' => 'QA Testing', 'description' => 'Quality assurance testing', 'keywords' => 'qa quality test testing', 'route' => 'web.testing.index'], ['title' => 'Risks', 'description' => 'Project risk register', 'keywords' => 'risk issue', 'route' => 'web.risks.index'], ['title' => 'Change Log', 'description' => 'Project changes', 'keywords' => 'change changes', 'route' => 'web.changes.index'], ['title' => 'Analytics', 'description' => 'Project reports', 'keywords' => 'analytics report reports', 'route' => 'analytics'], ['title' => 'Documents', 'description' => 'Project documents', 'keywords' => 'document files', 'route' => 'web.documents.index'], ['title' => 'Lessons', 'description' => 'Lessons learned', 'keywords' => 'lesson learned retrospective', 'route' => 'web.lessons.index'], ['title' => 'Project Chat', 'description' => 'Project conversations', 'keywords' => 'chat messages communication', 'route' => 'chat'],
+        ];
     }
 
     public function createProject()

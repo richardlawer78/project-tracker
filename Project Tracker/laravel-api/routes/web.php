@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [TrackerController::class, 'dashboard'])->name('dashboard');
+Route::get('/search', [TrackerController::class, 'globalSearch'])->name('search.global');
 
 Route::get('/projects', [TrackerController::class, 'projects'])->name('projects.index');
 Route::get('/projects/create', [TrackerController::class, 'createProject'])->name('projects.create');
@@ -63,17 +64,17 @@ foreach ($features as $feature => $prefix) {
         "/{$prefix}/{id}/edit",
         fn (int $id) => app(TrackerController::class)->editFeature($feature, $id)
     )->whereNumber('id')
-     ->name("web.{$feature}.edit");
+        ->name("web.{$feature}.edit");
 
     Route::put(
         "/{$prefix}/{id}",
         fn (Request $request, int $id) => app(TrackerController::class)->updateFeature($request, $feature, $id)
     )->whereNumber('id')
-     ->name("web.{$feature}.update");
+        ->name("web.{$feature}.update");
 
     Route::delete(
         "/{$prefix}/{id}",
         fn (int $id) => app(TrackerController::class)->deleteFeature($feature, $id)
     )->whereNumber('id')
-     ->name("web.{$feature}.destroy");
+        ->name("web.{$feature}.destroy");
 }
