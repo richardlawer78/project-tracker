@@ -106,7 +106,10 @@ class TrackerController extends Controller
 
     public function createProject()
     {
-        return view('projects.form', ['project' => new Project]);
+        return view('projects.form', [
+            'project' => new Project,
+            'teams' => $this->teamOptions(),
+        ]);
     }
 
     public function storeProject(Request $request)
@@ -125,7 +128,10 @@ class TrackerController extends Controller
 
     public function editProject(Project $project)
     {
-        return view('projects.form', compact('project'));
+        return view('projects.form', [
+            'project' => $project,
+            'teams' => $this->teamOptions(),
+        ]);
     }
 
     public function updateProject(Request $request, Project $project)
@@ -319,6 +325,17 @@ class TrackerController extends Controller
             'budget' => ['nullable', 'numeric', 'min:0'],
             'progress' => ['nullable', 'integer', 'between:0,100'],
         ]);
+    }
+
+    private function teamOptions(): array
+    {
+        return Project::query()
+            ->whereNotNull('team')
+            ->where('team', '!=', '')
+            ->distinct()
+            ->orderBy('team')
+            ->pluck('team')
+            ->all();
     }
 
     private function featureData(Request $request, string $feature, ?int $id = null): array

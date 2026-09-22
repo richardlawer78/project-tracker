@@ -10,31 +10,78 @@
 <aside class="sidebar" id="project-sidebar" aria-label="Main navigation">
     <a class="brand" href="{{ route('dashboard') }}" aria-label="Kedebah ERP home"><img src="{{ asset('assets/logo/kedebah-logo.png') }}" alt="Kedebah ERP"></a>
     <nav>
-        <p>OVERVIEW</p>
         <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}"><i class="nav-icon ri-home-line" aria-hidden="true"></i>Dashboard</a>
-        <a href="{{ route('projects.index') }}" class="{{ request()->is('projects*') ? 'active' : '' }}"><i class="nav-icon ri-folder-line" aria-hidden="true"></i>Projects</a>
-        <p>PROJECT DELIVERY</p>
-        <a href="{{ route('web.kickoff.index') }}" class="{{ request()->is('initiation/kickoff*') ? 'active' : '' }}"><i class="nav-icon ri-rocket-line" aria-hidden="true"></i>Kick-Off</a>
-        <a href="{{ route('web.stakeholders.index') }}" class="{{ request()->is('initiation/stakeholders*') ? 'active' : '' }}"><i class="nav-icon ri-team-line" aria-hidden="true"></i>Stakeholders</a>
-        <a href="{{ route('web.sprints.index') }}" class="{{ request()->is('agile/sprints*') ? 'active' : '' }}"><i class="nav-icon ri-loop-left-line" aria-hidden="true"></i>Sprints</a>
-        <a href="{{ route('web.backlog.index') }}" class="{{ request()->is('agile/backlog*') ? 'active' : '' }}"><i class="nav-icon ri-task-line" aria-hidden="true"></i>Backlog</a>
-        <a href="{{ route('web.definitions.index') }}" class="{{ request()->is('agile/definitions*') ? 'active' : '' }}"><i class="nav-icon ri-checkbox-circle-line" aria-hidden="true"></i>DoR / DoD</a>
-        <a href="{{ route('web.tasks.index') }}" class="{{ request()->is('tasks') || request()->is('tasks/create') || request()->is('tasks/*/edit') ? 'active' : '' }}"><i class="nav-icon ri-checkbox-circle-line" aria-hidden="true"></i>Tasks</a>
-        <a href="{{ route('kanban') }}" class="{{ request()->is('tasks/kanban') ? 'active' : '' }}"><i class="nav-icon ri-task-line" aria-hidden="true"></i>Kanban</a>
-        <a href="{{ route('web.workflows.index') }}" class="{{ request()->is('tasks/workflows*') ? 'active' : '' }}"><i class="nav-icon ri-git-branch-line" aria-hidden="true"></i>Workflows</a>
-        <p>RESOURCES &amp; QUALITY</p>
-        <a href="{{ route('web.team.index') }}" class="{{ request()->is('resources/team*') ? 'active' : '' }}"><i class="nav-icon ri-team-line" aria-hidden="true"></i>Team</a>
-        <a href="{{ route('web.time.index') }}" class="{{ request()->is('resources/time-tracking*') ? 'active' : '' }}"><i class="nav-icon ri-time-line" aria-hidden="true"></i>Time Tracking</a>
-        <a href="{{ route('web.budget.index') }}" class="{{ request()->is('resources/budget*') ? 'active' : '' }}"><i class="nav-icon ri-money-dollar-circle-line" aria-hidden="true"></i>Budget</a>
-        <a href="{{ route('web.milestones.index') }}" class="{{ request()->is('resources/milestones*') ? 'active' : '' }}"><i class="nav-icon ri-calendar-event-line" aria-hidden="true"></i>Milestones</a>
-        <a href="{{ route('gantt') }}" class="{{ request()->is('resources/gantt') ? 'active' : '' }}"><i class="nav-icon ri-road-map-line" aria-hidden="true"></i>Gantt</a>
-        <a href="{{ route('web.testing.index') }}" class="{{ request()->is('quality/qa-testing*') ? 'active' : '' }}"><i class="nav-icon ri-bug-line" aria-hidden="true"></i>QA Testing</a>
-        <a href="{{ route('web.risks.index') }}" class="{{ request()->is('quality/risks*') ? 'active' : '' }}"><i class="nav-icon ri-shield-check-line" aria-hidden="true"></i>Risks</a>
-        <a href="{{ route('web.changes.index') }}" class="{{ request()->is('quality/change-log*') ? 'active' : '' }}"><i class="nav-icon ri-git-branch-line" aria-hidden="true"></i>Change Log</a>
-        <p>INSIGHTS</p>
-        <a href="{{ route('analytics') }}" class="{{ request()->is('reports/analytics') ? 'active' : '' }}"><i class="nav-icon ri-bar-chart-box-line" aria-hidden="true"></i>Analytics</a>
-        <a href="{{ route('web.documents.index') }}" class="{{ request()->is('reports/documents*') ? 'active' : '' }}"><i class="nav-icon ri-file-text-line" aria-hidden="true"></i>Documents</a>
-        <a href="{{ route('web.lessons.index') }}" class="{{ request()->is('reports/lessons-learned*') ? 'active' : '' }}"><i class="nav-icon ri-book-open-line" aria-hidden="true"></i>Lessons</a>
+        @php
+            $firstProjectId = \App\Models\Project::query()->value('id');
+            $groups = [
+                'projects' => request()->is('projects*'),
+                'initiation' => request()->is('initiation/*'),
+                'agile' => request()->is('agile/*'),
+                'tasks' => request()->is('tasks*'),
+                'resources' => request()->is('resources/*'),
+                'quality' => request()->is('quality/*'),
+                'reports' => request()->is('reports/*'),
+            ];
+        @endphp
+        <div class="sidebar-group">
+            <button class="sidebar-group-toggle {{ $groups['projects'] ? 'active' : '' }}" type="button" data-sidebar-group-toggle aria-controls="sidebar-projects" aria-expanded="{{ $groups['projects'] ? 'true' : 'false' }}"><i class="nav-icon ri-folder-line" aria-hidden="true"></i>Projects<span class="sidebar-group-chevron" aria-hidden="true"></span></button>
+            <div class="sidebar-submenu" id="sidebar-projects" @if (! $groups['projects']) hidden @endif>
+                <a href="{{ route('projects.index') }}" class="{{ request()->routeIs('projects.index') ? 'active' : '' }}">Projects List</a>
+                <a href="{{ route('projects.create') }}" class="{{ request()->routeIs('projects.create') ? 'active' : '' }}">Create Project</a>
+                @if ($firstProjectId)
+                    <a href="{{ route('projects.show', $firstProjectId) }}" class="{{ request()->routeIs('projects.show', 'projects.edit') ? 'active' : '' }}">Project Details</a>
+                @endif
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <button class="sidebar-group-toggle {{ $groups['initiation'] ? 'active' : '' }}" type="button" data-sidebar-group-toggle aria-controls="sidebar-initiation" aria-expanded="{{ $groups['initiation'] ? 'true' : 'false' }}"><i class="nav-icon ri-rocket-line" aria-hidden="true"></i>Initiation<span class="sidebar-group-chevron" aria-hidden="true"></span></button>
+            <div class="sidebar-submenu" id="sidebar-initiation" @if (! $groups['initiation']) hidden @endif>
+                <a href="{{ route('web.kickoff.index') }}" class="{{ request()->is('initiation/kickoff*') ? 'active' : '' }}">Kick-Off</a>
+                <a href="{{ route('web.stakeholders.index') }}" class="{{ request()->is('initiation/stakeholders*') ? 'active' : '' }}">Stakeholders</a>
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <button class="sidebar-group-toggle {{ $groups['agile'] ? 'active' : '' }}" type="button" data-sidebar-group-toggle aria-controls="sidebar-agile" aria-expanded="{{ $groups['agile'] ? 'true' : 'false' }}"><i class="nav-icon ri-loop-left-line" aria-hidden="true"></i>Agile<span class="sidebar-group-chevron" aria-hidden="true"></span></button>
+            <div class="sidebar-submenu" id="sidebar-agile" @if (! $groups['agile']) hidden @endif>
+                <a href="{{ route('web.sprints.index') }}" class="{{ request()->is('agile/sprints*') ? 'active' : '' }}">Sprints</a>
+                <a href="{{ route('web.backlog.index') }}" class="{{ request()->is('agile/backlog*') ? 'active' : '' }}">Backlog</a>
+                <a href="{{ route('web.definitions.index') }}" class="{{ request()->is('agile/definitions*') ? 'active' : '' }}">DoR / DoD</a>
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <button class="sidebar-group-toggle {{ $groups['tasks'] ? 'active' : '' }}" type="button" data-sidebar-group-toggle aria-controls="sidebar-tasks" aria-expanded="{{ $groups['tasks'] ? 'true' : 'false' }}"><i class="nav-icon ri-checkbox-circle-line" aria-hidden="true"></i>Tasks<span class="sidebar-group-chevron" aria-hidden="true"></span></button>
+            <div class="sidebar-submenu" id="sidebar-tasks" @if (! $groups['tasks']) hidden @endif>
+                <a href="{{ route('web.tasks.index') }}" class="{{ request()->is('tasks') || request()->is('tasks/create') || request()->is('tasks/*/edit') ? 'active' : '' }}">Task List</a>
+                <a href="{{ route('kanban') }}" class="{{ request()->is('tasks/kanban') ? 'active' : '' }}">Kanban Board</a>
+                <a href="{{ route('web.workflows.index') }}" class="{{ request()->is('tasks/workflows*') ? 'active' : '' }}">Workflows</a>
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <button class="sidebar-group-toggle {{ $groups['resources'] ? 'active' : '' }}" type="button" data-sidebar-group-toggle aria-controls="sidebar-resources" aria-expanded="{{ $groups['resources'] ? 'true' : 'false' }}"><i class="nav-icon ri-team-line" aria-hidden="true"></i>Resources<span class="sidebar-group-chevron" aria-hidden="true"></span></button>
+            <div class="sidebar-submenu" id="sidebar-resources" @if (! $groups['resources']) hidden @endif>
+                <a href="{{ route('web.team.index') }}" class="{{ request()->is('resources/team*') ? 'active' : '' }}">Team</a>
+                <a href="{{ route('web.time.index') }}" class="{{ request()->is('resources/time-tracking*') ? 'active' : '' }}">Time Tracking</a>
+                <a href="{{ route('web.budget.index') }}" class="{{ request()->is('resources/budget*') ? 'active' : '' }}">Budget</a>
+                <a href="{{ route('web.milestones.index') }}" class="{{ request()->is('resources/milestones*') ? 'active' : '' }}">Milestones</a>
+                <a href="{{ route('gantt') }}" class="{{ request()->is('resources/gantt') ? 'active' : '' }}">Gantt Chart</a>
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <button class="sidebar-group-toggle {{ $groups['quality'] ? 'active' : '' }}" type="button" data-sidebar-group-toggle aria-controls="sidebar-quality" aria-expanded="{{ $groups['quality'] ? 'true' : 'false' }}"><i class="nav-icon ri-shield-check-line" aria-hidden="true"></i>Quality<span class="sidebar-group-chevron" aria-hidden="true"></span></button>
+            <div class="sidebar-submenu" id="sidebar-quality" @if (! $groups['quality']) hidden @endif>
+                <a href="{{ route('web.testing.index') }}" class="{{ request()->is('quality/qa-testing*') ? 'active' : '' }}">QA &amp; Testing</a>
+                <a href="{{ route('web.risks.index') }}" class="{{ request()->is('quality/risks*') ? 'active' : '' }}">Risks &amp; Issues</a>
+                <a href="{{ route('web.changes.index') }}" class="{{ request()->is('quality/change-log*') ? 'active' : '' }}">Change Log</a>
+            </div>
+        </div>
+        <div class="sidebar-group">
+            <button class="sidebar-group-toggle {{ $groups['reports'] ? 'active' : '' }}" type="button" data-sidebar-group-toggle aria-controls="sidebar-reports" aria-expanded="{{ $groups['reports'] ? 'true' : 'false' }}"><i class="nav-icon ri-bar-chart-box-line" aria-hidden="true"></i>Reports<span class="sidebar-group-chevron" aria-hidden="true"></span></button>
+            <div class="sidebar-submenu" id="sidebar-reports" @if (! $groups['reports']) hidden @endif>
+                <a href="{{ route('analytics') }}" class="{{ request()->is('reports/analytics') ? 'active' : '' }}">Analytics</a>
+                <a href="{{ route('web.documents.index') }}" class="{{ request()->is('reports/documents*') ? 'active' : '' }}">Documents</a>
+                <a href="{{ route('web.lessons.index') }}" class="{{ request()->is('reports/lessons-learned*') ? 'active' : '' }}">Lessons Learned</a>
+            </div>
+        </div>
         <a href="{{ route('chat') }}" class="{{ request()->is('chat*') ? 'active' : '' }}"><i class="nav-icon ri-chat-3-line" aria-hidden="true"></i>Project Chat</a>
     </nav>
 </aside>
@@ -68,7 +115,26 @@
     const storageKey = 'project-tracker-sidebar-scroll';
     const save = () => { if (sidebar && window.innerWidth > 900) sessionStorage.setItem(storageKey, String(sidebar.scrollTop)); };
     const restore = () => { const value = sessionStorage.getItem(storageKey); if (sidebar && window.innerWidth > 900 && value !== null) sidebar.scrollTop = parseInt(value, 10); };
-    document.addEventListener('DOMContentLoaded', () => { restore(); sidebar?.addEventListener('scroll', save); sidebar?.querySelectorAll('a').forEach((link) => link.addEventListener('click', save)); });
+    document.addEventListener('DOMContentLoaded', () => {
+        restore();
+        sidebar?.addEventListener('scroll', save);
+        sidebar?.querySelectorAll('a').forEach((link) => link.addEventListener('click', save));
+        sidebar?.querySelectorAll('[data-sidebar-group-toggle]').forEach((toggle) => {
+            toggle.addEventListener('click', () => {
+                const submenu = document.getElementById(toggle.getAttribute('aria-controls'));
+                const willOpen = toggle.getAttribute('aria-expanded') !== 'true';
+
+                sidebar.querySelectorAll('[data-sidebar-group-toggle]').forEach((groupToggle) => {
+                    const groupMenu = document.getElementById(groupToggle.getAttribute('aria-controls'));
+                    groupToggle.setAttribute('aria-expanded', 'false');
+                    groupMenu.hidden = true;
+                });
+
+                toggle.setAttribute('aria-expanded', String(willOpen));
+                submenu.hidden = !willOpen;
+            });
+        });
+    });
 })();
 </script>
 </body>
