@@ -1,29 +1,92 @@
-<?php
+﻿<?php
 
 use App\Http\Controllers\TrackerController;
+use App\Http\Controllers\WebAuthController;
+use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminUserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
+// Laravel Web Authentication
+
+Route::get('/login', [WebAuthController::class, 'showLogin'])->name('login');
+
+Route::post('/login', [WebAuthController::class, 'login']);
+
+Route::post('/logout', [WebAuthController::class, 'logout'])->name('logout');
+
+// Project Tracker Dashboard
+
 Route::get('/', [TrackerController::class, 'dashboard'])->name('dashboard');
-Route::get('/search', [TrackerController::class, 'globalSearch'])->name('search.global');
 
-Route::get('/projects', [TrackerController::class, 'projects'])->name('projects.index');
-Route::get('/projects/create', [TrackerController::class, 'createProject'])->name('projects.create');
-Route::post('/projects', [TrackerController::class, 'storeProject'])->name('projects.store');
-Route::get('/projects/{project}', [TrackerController::class, 'showProject'])->name('projects.show');
-Route::get('/projects/{project}/edit', [TrackerController::class, 'editProject'])->name('projects.edit');
-Route::put('/projects/{project}', [TrackerController::class, 'updateProject'])->name('projects.update');
-Route::delete('/projects/{project}', [TrackerController::class, 'deleteProject'])->name('projects.destroy');
+Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
+    ->middleware(['auth', 'admin'])
+    ->name('admin.dashboard');
 
-Route::get('/tasks/kanban', [TrackerController::class, 'kanban'])->name('kanban');
-Route::patch('/tasks/{task}/status', [TrackerController::class, 'updateTaskStatus'])->name('tasks.status');
+// Admin User Management
 
-Route::get('/resources/gantt', [TrackerController::class, 'gantt'])->name('gantt');
-Route::get('/reports/analytics', [TrackerController::class, 'analytics'])->name('analytics');
+Route::middleware(['auth', 'admin'])
+    ->prefix('admin')
+    ->name('admin.')
+    ->group(function () {
+        Route::resource('users', AdminUserController::class)
+            ->except(['show']);
+    });
 
-Route::get('/chat', [TrackerController::class, 'chat'])->name('chat');
-Route::post('/chat/channels', [TrackerController::class, 'storeChannel'])->name('chat.channels.store');
-Route::post('/chat/{channel}/messages', [TrackerController::class, 'storeMessage'])->name('chat.messages.store');
+Route::get('/search', [TrackerController::class, 'globalSearch'])
+    ->name('search.global');
+
+// Projects
+
+Route::get('/projects', [TrackerController::class, 'projects'])
+    ->name('projects.index');
+
+Route::get('/projects/create', [TrackerController::class, 'createProject'])
+    ->name('projects.create');
+
+Route::post('/projects', [TrackerController::class, 'storeProject'])
+    ->name('projects.store');
+
+Route::get('/projects/{project}', [TrackerController::class, 'showProject'])
+    ->name('projects.show');
+
+Route::get('/projects/{project}/edit', [TrackerController::class, 'editProject'])
+    ->name('projects.edit');
+
+Route::put('/projects/{project}', [TrackerController::class, 'updateProject'])
+    ->name('projects.update');
+
+Route::delete('/projects/{project}', [TrackerController::class, 'deleteProject'])
+    ->name('projects.destroy');
+
+// Tasks
+
+Route::get('/tasks/kanban', [TrackerController::class, 'kanban'])
+    ->name('kanban');
+
+Route::patch('/tasks/{task}/status', [TrackerController::class, 'updateTaskStatus'])
+    ->name('tasks.status');
+
+// Resources and Reports
+
+Route::get('/resources/gantt', [TrackerController::class, 'gantt'])
+    ->name('gantt');
+
+Route::get('/reports/analytics', [TrackerController::class, 'analytics'])
+    ->name('analytics');
+
+// Chat
+
+Route::get('/chat', [TrackerController::class, 'chat'])
+    ->name('chat');
+
+Route::post('/chat/channels', [TrackerController::class, 'storeChannel'])
+    ->name('chat.channels.store');
+
+Route::post('/chat/{channel}/messages', [TrackerController::class, 'storeMessage'])
+    ->name('chat.messages.store');
+
+// Feature routes
 
 $features = [
     'kickoff' => 'initiation/kickoff',

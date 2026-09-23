@@ -1,0 +1,26 @@
+# Laravel
+Project Tracker/laravel-api/vendor/
+Project Tracker/laravel-api/.env
+Project Tracker/laravel-api/.env.*
+!Project Tracker/laravel-api/.env.example
+
+# Laravel generated files
+Project Tracker/laravel-api/storage/*.key
+Project Tracker/laravel-api/storage/framework/cache/*
+Project Tracker/laravel-api/storage/framework/sessions/*
+Project Tracker/laravel-api/storage/framework/views/*
+Project Tracker/laravel-api/storage/logs/*
+
+# Vue / Node
+Project Tracker/vue-app/node_modules/
+Project Tracker/vue-app/dist/
+Project Tracker/vue-app/.env
+Project Tracker/vue-app/.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
