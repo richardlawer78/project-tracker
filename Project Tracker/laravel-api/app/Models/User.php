@@ -13,7 +13,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable(['name', 'email', 'password', 'role', 'job_title', 'avatar', 'availability_percent'])]
+#[Fillable([
+    'name',
+    'email',
+    'password',
+    'role',
+    'job_title',
+    'avatar',
+    'availability_percent',
+    'must_change_password',
+    'temporary_password_expires_at',
+])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -26,12 +36,14 @@ class User extends Authenticatable
      * @return array<string, string>
      */
     protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
-    } 
+{
+    return [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'must_change_password' => 'boolean',
+        'temporary_password_expires_at' => 'datetime',
+    ];
+}
     public function projects(): BelongsToMany
 {
     return $this->belongsToMany(Project::class, 'project_members')

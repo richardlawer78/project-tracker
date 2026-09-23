@@ -21,6 +21,7 @@ use App\Http\Controllers\TestCaseController;
 use App\Http\Controllers\TimeEntryController;
 use App\Http\Controllers\WorkflowController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -28,61 +29,82 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-
-// Authentication routes
-Route::post('/register', [AuthController::class, 'register']);
-
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware('auth:sanctum');
 
-
-// Protected API routes
 Route::middleware('auth:sanctum')->group(function () {
 
+    // Password
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
+
+    // Users
+    Route::get('/users', [UserController::class, 'index']);
+    Route::post('/users', [UserController::class, 'store']);
+
+    // Projects
     Route::apiResource('projects', ProjectController::class)
         ->names('api.projects');
 
+    // Tasks
     Route::apiResource('tasks', TaskController::class)
         ->names('api.tasks');
 
+    // Sprints
     Route::apiResource('sprints', SprintController::class)
         ->names('api.sprints');
 
+    // Milestones
     Route::apiResource('milestones', MilestoneController::class)
         ->names('api.milestones');
 
+    // Risks
     Route::apiResource('risks', RiskController::class)
         ->names('api.risks');
 
+    // Backlog
     Route::apiResource('backlog-items', BacklogItemController::class);
 
+    // Workflows
     Route::apiResource('workflows', WorkflowController::class);
 
+    // Budget
     Route::apiResource('budget-items', BudgetItemController::class);
 
+    // Time Entries
     Route::apiResource('time-entries', TimeEntryController::class);
 
+    // Resources
     Route::apiResource('project-resources', ProjectResourceController::class);
 
+    // Stakeholders
     Route::apiResource('stakeholders', StakeholderController::class);
 
+    // Kickoffs
     Route::apiResource('kickoffs', KickoffController::class);
 
+    // Kickoff Objectives
     Route::apiResource('kickoff-objectives', KickoffObjectiveController::class);
 
+    // Definition of Ready / Definition of Done
     Route::apiResource('dor-dod-items', DorDodItemController::class);
 
+    // Test Cases
     Route::apiResource('test-cases', TestCaseController::class);
 
+    // Change Log
     Route::apiResource('change-log-entries', ChangeLogEntryController::class);
 
+    // Documents
     Route::apiResource('documents', DocumentController::class);
 
+    // Lessons Learned
     Route::apiResource('lessons-learned', LessonLearnedController::class);
 
+    // Chat Channels
     Route::apiResource('chat-channels', ChatChannelController::class);
 
+    // Chat Messages
     Route::apiResource('chat-messages', ChatMessageController::class);
 });

@@ -50,12 +50,48 @@ class AuthController extends Controller
             ], 401);
         }
 
+        if (
+            $user->temporary_password_expires_at &&
+            now()->greaterThan($user->temporary_password_expires_at)
+        ) {
+            return response()->json([
+                'message' => 'Your temporary password has expired. Please contact an administrator.'
+            ], 403);
+        }
+
         $token = $user->createToken('project-tracker')->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful.',
             'token' => $token,
             'user' => $user,
+            'must_change_password' => $user->must_change_password,
+        ]);
+    }
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($data['current_password'], $user->password)) {
+            return response()->json([
+                'message' => 'Current password is incorrect.'
+            ], 422);
+        }
+
+        $user->update([
+            'password' => Hash::make($data['password']),
+            'must_change_password' => false,
+            'temporary_password_expires_at' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Password changed successfully.',
         ]);
     }
 
