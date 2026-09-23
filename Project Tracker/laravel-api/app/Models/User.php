@@ -10,13 +10,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 #[Fillable(['name', 'email', 'password', 'role', 'job_title', 'avatar', 'availability_percent'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -29,7 +31,14 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
-    }
+    } 
+    public function projects(): BelongsToMany
+{
+    return $this->belongsToMany(Project::class, 'project_members')
+        ->withPivot('role')
+        ->withTimestamps();
+}
+    
 
     public function assignedTasks(): HasMany { return $this->hasMany(Task::class, 'assigned_to'); }
     public function timeEntries(): HasMany { return $this->hasMany(TimeEntry::class); }

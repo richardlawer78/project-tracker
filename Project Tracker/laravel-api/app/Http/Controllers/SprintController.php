@@ -2,18 +2,39 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Project;
 use App\Models\Sprint;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\ProjectAccess;
 
 class SprintController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
+
         $sprints = Sprint::with('project:id,name')
-            ->when($request->filled('project_id'), fn ($query) => $query->where('project_id', $request->project_id)
+            ->whereHas('project', function ($query) use ($user) {
+                $query->when(
+                    $user->role !== 'admin',
+                    function ($query) use ($user) {
+                        $query->where(function ($query) use ($user) {
+                            $query->where('owner_id', $user->id)
+                                ->orWhereHas('members', function ($query) use ($user) {
+                                    $query->where('users.id', $user->id);
+                                });
+                        });
+                    }
+                );
+            })
+            ->when(
+                $request->filled('project_id'),
+                fn ($query) => $query->where('project_id', $request->project_id)
             )
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status)
+            ->when(
+                $request->filled('status'),
+                fn ($query) => $query->where('status', $request->status)
             )
             ->latest()
             ->paginate(15);
@@ -23,7 +44,16 @@ class SprintController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $sprint = Sprint::create($this->validatedData($request));
+        $data = $this->validatedData($request);
+
+        $project = Project::findOrFail($data['project_id']);
+
+        abort_unless(
+            ProjectAccess::canView($request->user(), $project),
+            403
+        );
+
+        $sprint = Sprint::create($data);
 
         return response()->json(
             $sprint->load('project:id,name'),
@@ -31,8 +61,13 @@ class SprintController extends Controller
         );
     }
 
-    public function show(Sprint $sprint): JsonResponse
+    public function show(Request $request, Sprint $sprint): JsonResponse
     {
+        abort_unless(
+            ProjectAccess::canView($request->user(), $sprint->project),
+            403
+        );
+
         return response()->json(
             $sprint->load('project:id,name')
         );
@@ -40,6 +75,11 @@ class SprintController extends Controller
 
     public function update(Request $request, Sprint $sprint): JsonResponse
     {
+        abort_unless(
+            ProjectAccess::canManage($request->user(), $sprint->project),
+            403
+        );
+
         $sprint->update($this->validatedData($request));
 
         return response()->json(
@@ -47,8 +87,13 @@ class SprintController extends Controller
         );
     }
 
-    public function destroy(Sprint $sprint): JsonResponse
+    public function destroy(Request $request, Sprint $sprint): JsonResponse
     {
+        abort_unless(
+            ProjectAccess::canManage($request->user(), $sprint->project),
+            403
+        );
+
         $sprint->delete();
 
         return response()->json(null, 204);

@@ -10,15 +10,32 @@ class TaskController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
+
         $tasks = Task::with([
             'project:id,name',
             'assignee:id,name',
         ])
-            ->when($request->filled('project_id'), fn ($query) =>
-                $query->where('project_id', $request->project_id)
+            ->whereHas('project', function ($query) use ($user) {
+                $query->when(
+                    $user->role !== 'admin',
+                    function ($query) use ($user) {
+                        $query->where(function ($query) use ($user) {
+                            $query->where('owner_id', $user->id)
+                                ->orWhereHas('members', function ($query) use ($user) {
+                                    $query->where('users.id', $user->id);
+                                });
+                        });
+                    }
+                );
+            })
+            ->when(
+                $request->filled('project_id'),
+                fn ($query) => $query->where('project_id', $request->project_id)
             )
-            ->when($request->filled('status'), fn ($query) =>
-                $query->where('status', $request->status)
+            ->when(
+                $request->filled('status'),
+                fn ($query) => $query->where('status', $request->status)
             )
             ->orderBy('position')
             ->latest()
@@ -29,25 +46,44 @@ class TaskController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $task = Task::create($this->validatedData($request));
+        $data = $this->validatedData($request);
 
-        return response()->json($task->load('project:id,name', 'assignee:id,name'), 201);
+        $project = \App\Models\Project::findOrFail($data['project_id']);
+
+        $this->authorize('view', $project);
+
+        $task = Task::create($data);
+
+        return response()->json(
+            $task->load('project:id,name', 'assignee:id,name'),
+            201
+        );
     }
 
     public function show(Task $task): JsonResponse
     {
-        return response()->json($task->load('project:id,name', 'assignee:id,name'));
+        $this->authorize('view', $task);
+
+        return response()->json(
+            $task->load('project:id,name', 'assignee:id,name')
+        );
     }
 
     public function update(Request $request, Task $task): JsonResponse
     {
+        $this->authorize('update', $task);
+
         $task->update($this->validatedData($request));
 
-        return response()->json($task->fresh()->load('project:id,name', 'assignee:id,name'));
+        return response()->json(
+            $task->fresh()->load('project:id,name', 'assignee:id,name')
+        );
     }
 
     public function destroy(Task $task): JsonResponse
     {
+        $this->authorize('delete', $task);
+
         $task->delete();
 
         return response()->json(null, 204);

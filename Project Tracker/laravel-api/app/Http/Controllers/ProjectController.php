@@ -8,32 +8,67 @@ use Illuminate\Http\Request;
 
 class ProjectController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        return response()->json(Project::latest()->paginate(15));
+        $user = $request->user();
+
+        $projects = Project::query()
+            ->when(
+                $user->role !== 'admin',
+                function ($query) use ($user) {
+                    $query->where(function ($query) use ($user) {
+                        $query->where('owner_id', $user->id)
+                            ->orWhereHas('members', function ($query) use ($user) {
+                                $query->where('users.id', $user->id);
+                            });
+                    });
+                }
+            )
+            ->latest()
+            ->paginate(15);
+
+        return response()->json($projects);
     }
 
     public function store(Request $request): JsonResponse
     {
-        $project = Project::create($this->validatedData($request));
+        $this->authorize('create', Project::class);
+
+        $data = $this->validatedData($request);
+
+        // The logged-in user automatically becomes the owner.
+        $data['owner_id'] = $request->user()->id;
+
+        $project = Project::create($data);
 
         return response()->json($project, 201);
     }
 
     public function show(Project $project): JsonResponse
     {
+        $this->authorize('view', $project);
+
         return response()->json($project);
     }
 
     public function update(Request $request, Project $project): JsonResponse
     {
-        $project->update($this->validatedData($request));
+        $this->authorize('update', $project);
+
+        $data = $this->validatedData($request);
+
+        // Prevent changing the project owner through the request.
+        unset($data['owner_id']);
+
+        $project->update($data);
 
         return response()->json($project->fresh());
     }
 
     public function destroy(Project $project): JsonResponse
     {
+        $this->authorize('delete', $project);
+
         $project->delete();
 
         return response()->json(null, 204);
@@ -42,7 +77,6 @@ class ProjectController extends Controller
     private function validatedData(Request $request): array
     {
         $data = $request->validate([
-            'owner_id' => ['nullable', 'exists:users,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'client' => ['nullable', 'string', 'max:255'],

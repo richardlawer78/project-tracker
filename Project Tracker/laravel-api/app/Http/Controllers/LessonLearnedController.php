@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\LessonLearned;
+use App\Models\Project;
+use App\ProjectAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -10,7 +12,19 @@ class LessonLearnedController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
+
         $lessons = LessonLearned::query()
+            ->whereHas('project', function ($query) use ($user) {
+                $query->when($user->role !== 'admin', function ($query) use ($user) {
+                    $query->where(function ($query) use ($user) {
+                        $query->where('owner_id', $user->id)
+                            ->orWhereHas('members', function ($query) use ($user) {
+                                $query->where('users.id', $user->id);
+                            });
+                    });
+                });
+            })
             ->when($request->filled('project_id'), fn ($query) =>
                 $query->where('project_id', $request->project_id)
             )
@@ -34,18 +48,35 @@ class LessonLearnedController extends Controller
             'date' => ['required', 'date'],
         ]);
 
+        $project = Project::findOrFail($validated['project_id']);
+
+        abort_unless(
+            ProjectAccess::canView($request->user(), $project),
+            403
+        );
+
         $lesson = LessonLearned::create($validated);
 
         return response()->json($lesson, 201);
     }
 
-    public function show(LessonLearned $lessonLearned): JsonResponse
+    public function show(Request $request, LessonLearned $lessonLearned): JsonResponse
     {
+        abort_unless(
+            ProjectAccess::canView($request->user(), $lessonLearned->project),
+            403
+        );
+
         return response()->json($lessonLearned);
     }
 
     public function update(Request $request, LessonLearned $lessonLearned): JsonResponse
     {
+        abort_unless(
+            ProjectAccess::canManage($request->user(), $lessonLearned->project),
+            403
+        );
+
         $validated = $request->validate([
             'project_id' => ['sometimes', 'exists:projects,id'],
             'title' => ['sometimes', 'string', 'max:255'],
@@ -60,8 +91,13 @@ class LessonLearnedController extends Controller
         return response()->json($lessonLearned);
     }
 
-    public function destroy(LessonLearned $lessonLearned): JsonResponse
+    public function destroy(Request $request, LessonLearned $lessonLearned): JsonResponse
     {
+        abort_unless(
+            ProjectAccess::canManage($request->user(), $lessonLearned->project),
+            403
+        );
+
         $lessonLearned->delete();
 
         return response()->json([

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Milestone;
+use App\Models\Project;
+use App\ProjectAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -10,10 +12,24 @@ class MilestoneController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = $request->user();
+
         $milestones = Milestone::with('project:id,name')
-            ->when($request->filled('project_id'), fn ($query) => $query->where('project_id', $request->project_id)
+            ->whereHas('project', function ($query) use ($user) {
+                $query->when($user->role !== 'admin', function ($query) use ($user) {
+                    $query->where(function ($query) use ($user) {
+                        $query->where('owner_id', $user->id)
+                            ->orWhereHas('members', function ($query) use ($user) {
+                                $query->where('users.id', $user->id);
+                            });
+                    });
+                });
+            })
+            ->when($request->filled('project_id'), fn ($query) =>
+                $query->where('project_id', $request->project_id)
             )
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status)
+            ->when($request->filled('status'), fn ($query) =>
+                $query->where('status', $request->status)
             )
             ->latest()
             ->paginate(15);
@@ -23,7 +39,16 @@ class MilestoneController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $milestone = Milestone::create($this->normalized($this->validatedData($request)));
+        $data = $this->normalized($this->validatedData($request));
+
+        $project = Project::findOrFail($data['project_id']);
+
+        abort_unless(
+            ProjectAccess::canView($request->user(), $project),
+            403
+        );
+
+        $milestone = Milestone::create($data);
 
         return response()->json(
             $milestone->load('project:id,name'),
@@ -31,8 +56,13 @@ class MilestoneController extends Controller
         );
     }
 
-    public function show(Milestone $milestone): JsonResponse
+    public function show(Request $request, Milestone $milestone): JsonResponse
     {
+        abort_unless(
+            ProjectAccess::canView($request->user(), $milestone->project),
+            403
+        );
+
         return response()->json(
             $milestone->load('project:id,name')
         );
@@ -40,15 +70,30 @@ class MilestoneController extends Controller
 
     public function update(Request $request, Milestone $milestone): JsonResponse
     {
-        $milestone->update($this->normalized($this->validatedData($request)));
+        abort_unless(
+            ProjectAccess::canManage($request->user(), $milestone->project),
+            403
+        );
+
+        $data = $this->validatedData($request);
+
+        // Keep the milestone attached to its existing project.
+        unset($data['project_id']);
+
+        $milestone->update($this->normalized($data));
 
         return response()->json(
             $milestone->fresh()->load('project:id,name')
         );
     }
 
-    public function destroy(Milestone $milestone): JsonResponse
+    public function destroy(Request $request, Milestone $milestone): JsonResponse
     {
+        abort_unless(
+            ProjectAccess::canManage($request->user(), $milestone->project),
+            403
+        );
+
         $milestone->delete();
 
         return response()->json(null, 204);
