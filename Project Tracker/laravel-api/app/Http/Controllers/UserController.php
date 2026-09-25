@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -34,7 +35,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'role' => ['required', 'string', 'max:50'],
+            'role' => ['required', Rule::in(['admin', 'project-manager', 'team-lead', 'developer', 'team-member', 'member'])],
             'job_title' => ['nullable', 'string', 'max:255'],
         ]);
 

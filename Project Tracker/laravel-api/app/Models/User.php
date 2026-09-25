@@ -52,6 +52,29 @@ class User extends Authenticatable
 }
     
 
+    /**
+     * Full URL of the profile picture, or null when the person has none.
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar ? asset($this->avatar) : null;
+    }
+
+    /**
+     * Up to two initials, used when there is no profile picture.
+     */
+    public function getInitialsAttribute(): string
+    {
+        $initials = \Illuminate\Support\Str::of($this->name ?? '')
+            ->explode(' ')
+            ->filter()
+            ->map(fn ($part) => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($part, 0, 1)))
+            ->take(2)
+            ->implode('');
+
+        return $initials !== '' ? $initials : 'U';
+    }
+
     public function assignedTasks(): HasMany { return $this->hasMany(Task::class, 'assigned_to'); }
     public function timeEntries(): HasMany { return $this->hasMany(TimeEntry::class); }
     public function ownedRisks(): HasMany { return $this->hasMany(Risk::class, 'owner_id'); }

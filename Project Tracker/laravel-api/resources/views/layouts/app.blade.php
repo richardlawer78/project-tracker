@@ -1,5 +1,4 @@
-﻿```blade
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -67,7 +66,22 @@
 
 
             @php
-                $firstProjectId = \App\Models\Project::query()->value('id');
+                // "Project Details" opens the first project THIS person can actually open.
+                $authUser = auth()->user();
+
+                $firstProjectId = null;
+
+                if ($authUser) {
+                    $firstProjectId = \App\Models\Project::query()
+                        ->when($authUser->role !== 'admin', function ($query) use ($authUser) {
+                            $query->where(function ($q) use ($authUser) {
+                                $q->where('owner_id', $authUser->id)
+                                  ->orWhereHas('members', fn ($m) => $m->where('users.id', $authUser->id));
+                            });
+                        })
+                        ->orderBy('id')
+                        ->value('id');
+                }
 
                 $groups = [
                     'projects' => request()->is('projects/*'),
@@ -113,12 +127,14 @@
 
                     </a>
 
+                    @if (\App\ProjectAccess::canCreate(auth()->user()))
                     <a href="{{ route('projects.create') }}"
                        class="{{ request()->routeIs('projects.create') ? 'active' : '' }}">
 
                         Create Project
 
                     </a>
+                    @endif
 
                     @if ($firstProjectId)
 
@@ -683,11 +699,15 @@
                     >
 
                         <span
-                            class="avatar workspace-avatar"
+                            class="avatar workspace-avatar" style="overflow:hidden;"
                             aria-hidden="true"
                         >
 
+                            @if (auth()->user()?->avatar_url)
+                            <img src="{{ auth()->user()->avatar_url }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">
+                        @else
                             {{ $userInitials ?: 'U' }}
+                        @endif
 
                         </span>
 
@@ -718,11 +738,15 @@
                         <div class="profile-menu-heading">
 
                             <span
-                                class="avatar workspace-avatar"
+                                class="avatar workspace-avatar" style="overflow:hidden;"
                                 aria-hidden="true"
                             >
 
-                                {{ $userInitials ?: 'U' }}
+                                @if (auth()->user()?->avatar_url)
+                            <img src="{{ auth()->user()->avatar_url }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">
+                        @else
+                            {{ $userInitials ?: 'U' }}
+                        @endif
 
                             </span>
 
@@ -736,6 +760,15 @@
                             </div>
 
                         </div>
+
+
+                        <a href="{{ route('profile.edit') }}">
+
+                            My profile
+
+                            <span>&rarr;</span>
+
+                        </a>
 
 
                         <a href="{{ route('projects.index') }}">
@@ -987,4 +1020,3 @@
 </body>
 
 </html>
-```

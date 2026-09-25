@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Sign In | Project Tracker</title>
+    <title>Sign Up | Project Tracker</title>
 
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap"
@@ -34,16 +34,17 @@
 
         /* =========================
            MAIN AUTH SCREEN
+           (mirrored: form panel first/left, brand panel second/right)
         ========================= */
 
         .auth-screen {
             min-height: 100vh;
             display: grid;
-            grid-template-columns: 1.05fr 0.95fr;
+            grid-template-columns: 0.95fr 1.05fr;
         }
 
         /* =========================
-           LEFT BRAND PANEL
+           BRAND PANEL
         ========================= */
 
         .auth-brand {
@@ -51,7 +52,7 @@
             overflow: hidden;
             background:
                 radial-gradient(
-                    circle at 20% 20%,
+                    circle at 80% 20%,
                     rgba(99, 102, 241, 0.25),
                     transparent 32%
                 ),
@@ -230,7 +231,7 @@
         .auth-shape-1 {
             width: 180px;
             height: 180px;
-            right: -80px;
+            left: -80px;
             bottom: -100px;
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
@@ -238,13 +239,13 @@
         .auth-shape-2 {
             width: 260px;
             height: 260px;
-            right: -160px;
+            left: -160px;
             top: -130px;
             border: 1px solid rgba(255, 255, 255, 0.06);
         }
 
         /* =========================
-           RIGHT FORM PANEL
+           FORM PANEL
            (same navy / indigo palette as the brand panel)
         ========================= */
 
@@ -258,15 +259,15 @@
             overflow: hidden;
             background:
                 radial-gradient(
-                    circle at 80% 15%,
+                    circle at 20% 15%,
                     rgba(99, 102, 241, 0.22),
                     transparent 38%
                 ),
                 linear-gradient(
-                    215deg,
-                    #312e81 0%,
-                    #172554 55%,
-                    #111827 100%
+                    145deg,
+                    #111827 0%,
+                    #172554 45%,
+                    #312e81 100%
                 );
         }
 
@@ -285,7 +286,7 @@
             width: 340px;
             height: 340px;
             top: 6%;
-            right: 8%;
+            left: 8%;
             background: rgba(139, 92, 246, 0.55);
         }
 
@@ -293,7 +294,7 @@
             width: 300px;
             height: 300px;
             bottom: 4%;
-            left: 6%;
+            right: 6%;
             background: rgba(47, 214, 255, 0.28);
         }
 
@@ -420,70 +421,6 @@
         }
 
         /* =========================
-           ADMIN / USER SWITCH
-        ========================= */
-
-        .auth-role {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px;
-            padding: 5px;
-            margin-bottom: 28px;
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.07);
-        }
-
-        .auth-role label {
-            position: relative;
-            cursor: pointer;
-        }
-
-        .auth-role input {
-            position: absolute;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .auth-role span {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 10px 12px;
-            border-radius: 999px;
-            color: rgba(255, 255, 255, 0.68);
-            font-size: 13px;
-            font-weight: 700;
-            transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
-        }
-
-        .auth-role span svg {
-            width: 16px;
-            height: 16px;
-            fill: none;
-            stroke: currentColor;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-        .auth-role label:hover span {
-            color: #ffffff;
-        }
-
-        .auth-role input:checked + span {
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            color: #ffffff;
-            box-shadow: 0 8px 22px rgba(99, 102, 241, 0.45);
-        }
-
-        .auth-role input:focus-visible + span {
-            outline: 2px solid #a5b4fc;
-            outline-offset: 2px;
-        }
-
-        /* =========================
            ALERT
         ========================= */
 
@@ -592,47 +529,6 @@
         }
 
         /* =========================
-           REMEMBER / FORGOT
-        ========================= */
-
-        .auth-row-between {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 15px;
-            margin: 4px 0 30px;
-        }
-
-        .auth-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: rgba(255, 255, 255, 0.68);
-            font-size: 12px;
-            cursor: pointer;
-        }
-
-        .auth-checkbox input {
-            width: 14px;
-            height: 14px;
-            margin: 0;
-            accent-color: #8b5cf6;
-            cursor: pointer;
-        }
-
-        .auth-link {
-            color: #a5b4fc;
-            font-size: 12px;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: default;
-        }
-
-        .auth-link:hover {
-            text-decoration: underline;
-        }
-
-        /* =========================
            SUBMIT BUTTON
         ========================= */
 
@@ -716,15 +612,6 @@
             .auth-form-wrap {
                 padding: 34px 24px 30px;
             }
-
-            .auth-row-between {
-                align-items: flex-start;
-                flex-direction: column;
-            }
-
-            .auth-link {
-                align-self: flex-end;
-            }
         }
     </style>
 </head>
@@ -734,7 +621,192 @@
 <div class="auth-screen">
 
     {{-- =========================
-         LEFT BRAND PANEL
+         LEFT: SIGN UP FORM
+    ========================== --}}
+    <div class="auth-form-side">
+
+        <div class="auth-form-glow"></div>
+
+        <div class="auth-card-frame">
+            <div class="auth-form-wrap">
+
+                <div class="auth-form-header">
+                    <h2>Sign Up</h2>
+
+                    <p>
+                        Create an account to start using Project Tracker.
+                    </p>
+                </div>
+
+                {{-- General error --}}
+                @if ($errors->any())
+                    <div class="auth-alert">
+                        {{ $errors->first() }}
+                    </div>
+                @endif
+
+                <form
+                    method="POST"
+                    action="{{ route('signup') }}"
+                    novalidate
+                >
+                    @csrf
+
+                    {{-- Name --}}
+                    <div class="auth-field">
+
+                        <label for="name">
+                            Full name
+                        </label>
+
+                        <span class="auth-field-icon">&#128100;</span>
+
+                        <input
+                            id="name"
+                            name="name"
+                            type="text"
+                            value="{{ old('name') }}"
+                            autocomplete="name"
+                            placeholder="Jane Doe"
+                            class="{{ $errors->has('name') ? 'has-error' : '' }}"
+                            required
+                            autofocus
+                        >
+
+                        @if ($errors->has('name'))
+                            <span class="auth-field-error">
+                                {{ $errors->first('name') }}
+                            </span>
+                        @endif
+
+                    </div>
+
+                    {{-- Email --}}
+                    <div class="auth-field">
+
+                        <label for="email">
+                            Email address
+                        </label>
+
+                        <span class="auth-field-icon">&#9993;</span>
+
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            value="{{ old('email') }}"
+                            autocomplete="email"
+                            placeholder="you@company.com"
+                            class="{{ $errors->has('email') ? 'has-error' : '' }}"
+                            required
+                        >
+
+                        @if ($errors->has('email'))
+                            <span class="auth-field-error">
+                                {{ $errors->first('email') }}
+                            </span>
+                        @endif
+
+                    </div>
+
+                    {{-- Password --}}
+                    <div class="auth-field">
+
+                        <label for="password">
+                            Password
+                        </label>
+
+                        <span class="auth-field-icon">&#128274;</span>
+
+                        <div class="auth-password-wrap">
+
+                            <input
+                                id="password"
+                                name="password"
+                                type="password"
+                                autocomplete="new-password"
+                                placeholder="Create a password"
+                                class="{{ $errors->has('password') ? 'has-error' : '' }}"
+                                required
+                            >
+
+                            <button
+                                type="button"
+                                class="auth-toggle-visibility"
+                                id="togglePassword"
+                                aria-label="Show password"
+                            >
+                                <span id="eyeIcon">&#9673;</span>
+                            </button>
+
+                        </div>
+
+                        @if ($errors->has('password'))
+                            <span class="auth-field-error">
+                                {{ $errors->first('password') }}
+                            </span>
+                        @endif
+
+                    </div>
+
+                    {{-- Confirm Password --}}
+                    <div class="auth-field">
+
+                        <label for="password_confirmation">
+                            Confirm password
+                        </label>
+
+                        <span class="auth-field-icon">&#128274;</span>
+
+                        <div class="auth-password-wrap">
+
+                            <input
+                                id="password_confirmation"
+                                name="password_confirmation"
+                                type="password"
+                                autocomplete="new-password"
+                                placeholder="Re-enter your password"
+                                required
+                            >
+
+                            <button
+                                type="button"
+                                class="auth-toggle-visibility"
+                                id="togglePasswordConfirm"
+                                aria-label="Show password"
+                            >
+                                <span id="eyeIconConfirm">&#9673;</span>
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                    {{-- Submit --}}
+                    <button
+                        type="submit"
+                        class="auth-submit"
+                        id="signupButton"
+                    >
+                        <span id="signupButtonText">
+                            Create Account
+                        </span>
+                    </button>
+
+                </form>
+
+                <div class="auth-switch">
+                    Already have an account?
+                    <a href="{{ route('login') }}">Log in</a>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    {{-- =========================
+         RIGHT: BRAND PANEL
     ========================== --}}
     <div class="auth-brand">
 
@@ -805,248 +877,38 @@
         </div>
     </div>
 
-    {{-- =========================
-         RIGHT LOGIN FORM
-    ========================== --}}
-    <div class="auth-form-side">
-
-        <div class="auth-form-glow"></div>
-
-        <div class="auth-card-frame">
-            <div class="auth-form-wrap">
-
-                <div class="auth-form-header">
-                    <h2 id="loginTitle">Login</h2>
-
-                    <p id="loginSubtitle">
-                        Sign in to continue to your Project Tracker workspace.
-                    </p>
-                </div>
-
-                {{-- General error --}}
-                @if ($errors->any())
-                    <div class="auth-alert">
-                        {{ $errors->first() }}
-                    </div>
-                @endif
-
-                @if (session('status'))
-                    <div class="auth-alert" style="
-                        border-color: rgba(52, 211, 153, 0.4);
-                        background: rgba(52, 211, 153, 0.1);
-                        color: #a7f3d0;
-                    ">
-                        {{ session('status') }}
-                    </div>
-                @endif
-
-                <form
-                    method="POST"
-                    action="{{ route('login') }}"
-                    novalidate
-                >
-                    @csrf
-
-                    {{-- Login as: User or Admin --}}
-                    @php
-                        $loginAs = old('login_as', 'user');
-                    @endphp
-
-                    <div class="auth-role" role="radiogroup" aria-label="Login as">
-
-                        <label>
-                            <input
-                                type="radio"
-                                name="login_as"
-                                value="user"
-                                {{ $loginAs === 'user' ? 'checked' : '' }}
-                            >
-
-                            <span>
-                                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
-                                User
-                            </span>
-                        </label>
-
-                        <label>
-                            <input
-                                type="radio"
-                                name="login_as"
-                                value="admin"
-                                {{ $loginAs === 'admin' ? 'checked' : '' }}
-                            >
-
-                            <span>
-                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>
-                                Admin
-                            </span>
-                        </label>
-
-                    </div>
-
-                    {{-- Email --}}
-                    <div class="auth-field">
-
-                        <label for="email">
-                            Email address
-                        </label>
-
-                        <span class="auth-field-icon">&#128100;</span>
-
-                        <input
-                            id="email"
-                            name="email"
-                            type="email"
-                            value="{{ old('email') }}"
-                            autocomplete="email"
-                            placeholder="you@company.com"
-                            class="{{ $errors->has('email') ? 'has-error' : '' }}"
-                            required
-                            autofocus
-                        >
-
-                        @if ($errors->has('email'))
-                            <span class="auth-field-error">
-                                {{ $errors->first('email') }}
-                            </span>
-                        @endif
-
-                    </div>
-
-                    {{-- Password --}}
-                    <div class="auth-field">
-
-                        <label for="password">
-                            Password
-                        </label>
-
-                        <span class="auth-field-icon">&#128274;</span>
-
-                        <div class="auth-password-wrap">
-
-                            <input
-                                id="password"
-                                name="password"
-                                type="password"
-                                autocomplete="current-password"
-                                placeholder="Enter your password"
-                                class="{{ $errors->has('password') ? 'has-error' : '' }}"
-                                required
-                            >
-
-                            <button
-                                type="button"
-                                class="auth-toggle-visibility"
-                                id="togglePassword"
-                                aria-label="Show password"
-                            >
-                                <span id="eyeIcon">&#9673;</span>
-                            </button>
-
-                        </div>
-
-                        @if ($errors->has('password'))
-                            <span class="auth-field-error">
-                                {{ $errors->first('password') }}
-                            </span>
-                        @endif
-
-                    </div>
-
-                    {{-- Remember me / Forgot password --}}
-                    <div class="auth-row-between">
-
-                        <label class="auth-checkbox">
-
-                            <input
-                                type="checkbox"
-                                name="remember"
-                                value="1"
-                                {{ old('remember') ? 'checked' : '' }}
-                            >
-
-                            <span>Remember me</span>
-
-                        </label>
-
-                        <span
-                            class="auth-link"
-                            title="Password recovery is not configured yet"
-                        >
-                            Forgot Password?
-                        </span>
-
-                    </div>
-
-                    {{-- Submit --}}
-                    <button
-                        type="submit"
-                        class="auth-submit"
-                        id="loginButton"
-                    >
-                        <span id="loginButtonText">
-                            Sign In
-                        </span>
-                    </button>
-
-                </form>
-
-                <div class="auth-switch">
-                    Don't have an account?
-                    <a href="{{ route('signup') }}">Sign Up</a>
-                </div>
-
-            </div>
-        </div>
-
-    </div>
-
 </div>
 
 <script>
-    const passwordInput = document.getElementById('password');
-    const togglePassword = document.getElementById('togglePassword');
-    const eyeIcon = document.getElementById('eyeIcon');
+    function wirePasswordToggle(inputId, buttonId, iconId) {
+        const input = document.getElementById(inputId);
+        const button = document.getElementById(buttonId);
+        const icon = document.getElementById(iconId);
 
-    togglePassword.addEventListener('click', function () {
-        const isPassword = passwordInput.type === 'password';
+        button.addEventListener('click', function () {
+            const isPassword = input.type === 'password';
 
-        passwordInput.type = isPassword ? 'text' : 'password';
+            input.type = isPassword ? 'text' : 'password';
 
-        eyeIcon.textContent = isPassword ? '\u25C9' : '\u25CC';
+            icon.textContent = isPassword ? '\u25C9' : '\u25CC';
 
-        togglePassword.setAttribute(
-            'aria-label',
-            isPassword ? 'Hide password' : 'Show password'
-        );
-    });
-
-    const loginTitle = document.getElementById('loginTitle');
-    const loginSubtitle = document.getElementById('loginSubtitle');
-
-    function updateLoginMode() {
-        const isAdmin = document.querySelector('input[name="login_as"]:checked').value === 'admin';
-
-        loginTitle.textContent = isAdmin ? 'Admin Login' : 'Login';
-
-        loginSubtitle.textContent = isAdmin
-            ? 'Sign in with your administrator account.'
-            : 'Sign in to continue to your Project Tracker workspace.';
+            button.setAttribute(
+                'aria-label',
+                isPassword ? 'Hide password' : 'Show password'
+            );
+        });
     }
 
-    document.querySelectorAll('input[name="login_as"]').forEach(function (radio) {
-        radio.addEventListener('change', updateLoginMode);
-    });
+    wirePasswordToggle('password', 'togglePassword', 'eyeIcon');
+    wirePasswordToggle('password_confirmation', 'togglePasswordConfirm', 'eyeIconConfirm');
 
-    updateLoginMode();
+    const signupForm = document.querySelector('form');
+    const signupButton = document.getElementById('signupButton');
+    const signupButtonText = document.getElementById('signupButtonText');
 
-    const loginForm = document.querySelector('form');
-    const loginButton = document.getElementById('loginButton');
-    const loginButtonText = document.getElementById('loginButtonText');
-
-    loginForm.addEventListener('submit', function () {
-        loginButton.disabled = true;
-        loginButtonText.textContent = 'Signing in...';
+    signupForm.addEventListener('submit', function () {
+        signupButton.disabled = true;
+        signupButtonText.textContent = 'Creating account...';
     });
 </script>
 

@@ -302,7 +302,6 @@
 
 <div class="users-page">
 
-```
 <div class="users-page-header">
     <div>
         <h1>User Management</h1>
@@ -375,8 +374,12 @@
                         <tr>
                             <td>
                                 <div class="user-info">
-                                    <div class="user-avatar">
-                                        {{ strtoupper(substr($user->name, 0, 1)) }}
+                                    <div class="user-avatar" @if($user->avatar_url) style="overflow:hidden;" @endif>
+                                        @if($user->avatar_url)
+                                            <img src="{{ $user->avatar_url }}" alt="{{ $user->name }}" style="width:100%;height:100%;object-fit:cover;display:block;">
+                                        @else
+                                            {{ strtoupper(substr($user->name, 0, 1)) }}
+                                        @endif
                                     </div>
 
                                     <div>
@@ -473,7 +476,6 @@
     @endif
 
 </div>
-```
 
 </div>
 @endsection

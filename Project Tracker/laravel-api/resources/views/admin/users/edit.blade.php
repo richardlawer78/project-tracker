@@ -1,9 +1,38 @@
-```blade
 @extends('layouts.app')
 
 @section('title', 'Edit User')
 
 @section('content')
+
+@php
+    $jobTitles = [
+        'Software Developer',
+        'Frontend Developer',
+        'Backend Developer',
+        'Full Stack Developer',
+        'Mobile App Developer',
+        'UI/UX Designer',
+        'QA Engineer',
+        'DevOps Engineer',
+        'Data Analyst',
+        'Business Analyst',
+        'Project Manager',
+        'Scrum Master',
+        'Product Owner',
+        'Team Lead',
+        'System Administrator',
+    ];
+
+    $currentJobTitle = old('job_title', $user->job_title);
+
+    $isOtherJob = $currentJobTitle === 'other'
+        || (!empty($currentJobTitle) && !in_array($currentJobTitle, $jobTitles));
+
+    $otherJobValue = old(
+        'job_title_other',
+        ($isOtherJob && $currentJobTitle !== 'other') ? $currentJobTitle : ''
+    );
+@endphp
 
 <style>
     .user-edit-page {
@@ -121,6 +150,31 @@
         color: #64748b;
     }
 
+    .field-error {
+        margin: 0;
+        color: #dc2626;
+        font-size: 12px;
+    }
+
+    .password-section {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+        padding-top: 4px;
+        margin-top: 4px;
+    }
+
+    .password-section-title {
+        grid-column: 1 / -1;
+        margin: 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #111827;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
     .user-form-actions {
         display: flex;
         align-items: center;
@@ -194,11 +248,14 @@
             flex-direction: column;
         }
 
-        .user-form-grid {
+        .user-form-grid,
+        .password-section {
             grid-template-columns: 1fr;
         }
 
-        .user-form-group.full-width {
+        .user-form-group.full-width,
+        .password-section,
+        .password-section-title {
             grid-column: auto;
         }
 
@@ -232,7 +289,7 @@
             <h1>Edit User</h1>
 
             <p>
-                Update the user's account information and role.
+                Update the user's account information, role, and job details.
             </p>
         </div>
 
@@ -276,7 +333,7 @@
             <h2>User Information</h2>
 
             <p>
-                Update account details and permissions.
+                Update account details, role, job information, and permissions.
             </p>
 
         </div>
@@ -285,6 +342,7 @@
         <form
             action="{{ route('admin.users.update', $user->id) }}"
             method="POST"
+            enctype="multipart/form-data"
             class="user-edit-form"
         >
 
@@ -294,6 +352,46 @@
 
 
             <div class="user-form-grid">
+
+                {{-- Profile Photo --}}
+                <div class="user-form-group" style="grid-column: 1 / -1;">
+                    <label for="avatar">Profile Photo</label>
+
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        @if($user->avatar_url)
+                            <img
+                                src="{{ $user->avatar_url }}"
+                                alt="{{ $user->name }}"
+                                style="width: 64px; height: 64px; border-radius: 50%; object-fit: cover; flex-shrink: 0;"
+                            >
+                        @endif
+
+                        <input
+                            type="file"
+                            id="avatar"
+                            name="avatar"
+                            accept="image/png,image/jpeg,image/webp"
+                        >
+                    </div>
+
+                    <p class="user-form-help">JPG, PNG or WebP, up to 2 MB. Choosing a new photo replaces the current one.</p>
+
+                    @if($user->avatar)
+                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 500;">
+                            <input
+                                type="checkbox"
+                                name="remove_avatar"
+                                value="1"
+                                style="width: auto; min-height: 0;"
+                            >
+                            Remove current photo
+                        </label>
+                    @endif
+
+                    @error('avatar')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
 
                 {{-- NAME --}}
                 <div class="user-form-group">
@@ -308,8 +406,13 @@
                         name="name"
                         value="{{ old('name', $user->name) }}"
                         placeholder="Enter full name"
+                        autocomplete="name"
                         required
                     >
+
+                    @error('name')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
 
                 </div>
 
@@ -327,8 +430,13 @@
                         name="email"
                         value="{{ old('email', $user->email) }}"
                         placeholder="Enter email address"
+                        autocomplete="email"
                         required
                     >
+
+                    @error('email')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
 
                 </div>
 
@@ -345,6 +453,8 @@
                         name="role"
                         required
                     >
+
+                        <option value="">Select a role</option>
 
                         <option
                             value="admin"
@@ -394,6 +504,150 @@
                         The role determines the user's access level.
                     </p>
 
+                    @error('role')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+
+                </div>
+
+
+                {{-- JOB TITLE --}}
+                <div class="user-form-group">
+
+                    <label for="job_title">
+                        Job Title
+                    </label>
+
+                    <select
+                        id="job_title"
+                        name="job_title"
+                    >
+
+                        <option value="">Select a job title</option>
+
+                        @foreach($jobTitles as $title)
+                            <option
+                                value="{{ $title }}"
+                                {{ !$isOtherJob && $currentJobTitle === $title ? 'selected' : '' }}
+                            >
+                                {{ $title }}
+                            </option>
+                        @endforeach
+
+                        <option
+                            value="other"
+                            {{ $isOtherJob ? 'selected' : '' }}
+                        >
+                            Other
+                        </option>
+
+                    </select>
+
+                    <input
+                        type="text"
+                        id="job_title_other"
+                        name="job_title_other"
+                        value="{{ $otherJobValue }}"
+                        placeholder="Type the job title"
+                        style="{{ $isOtherJob ? '' : 'display: none;' }}"
+                    >
+
+                    <p class="user-form-help">
+                        Choose the user's position, or pick "Other" to type your own.
+                    </p>
+
+                    @error('job_title')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+
+                    @error('job_title_other')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+
+                </div>
+
+
+                {{-- AVAILABILITY --}}
+                <div class="user-form-group">
+
+                    <label for="availability_percent">
+                        Availability (%)
+                    </label>
+
+                    <input
+                        type="number"
+                        id="availability_percent"
+                        name="availability_percent"
+                        value="{{ old('availability_percent', $user->availability_percent ?? 100) }}"
+                        min="0"
+                        max="100"
+                        placeholder="100"
+                    >
+
+                    <p class="user-form-help">
+                        Enter the user's availability from 0% to 100%.
+                    </p>
+
+                    @error('availability_percent')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+
+                </div>
+
+
+                {{-- PASSWORD SECTION (optional on edit) --}}
+                <div class="password-section">
+
+                    <h3 class="password-section-title">
+                        Password
+                    </h3>
+
+                    <div class="user-form-group">
+
+                        <label for="password">
+                            New Password
+                        </label>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Leave blank to keep current password"
+                            minlength="8"
+                            autocomplete="new-password"
+                        >
+
+                        <p class="user-form-help">
+                            Only fill this in to change the password. Minimum 8 characters.
+                        </p>
+
+                        @error('password')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+
+                    </div>
+
+                    <div class="user-form-group">
+
+                        <label for="password_confirmation">
+                            Confirm New Password
+                        </label>
+
+                        <input
+                            type="password"
+                            id="password_confirmation"
+                            name="password_confirmation"
+                            placeholder="Confirm new password"
+                            minlength="8"
+                            autocomplete="new-password"
+                        >
+
+                        @error('password_confirmation')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+
+                    </div>
+
                 </div>
 
             </div>
@@ -424,5 +678,21 @@
 
 </div>
 
+<script>
+    (function () {
+        const jobSelect = document.getElementById('job_title');
+        const jobOther = document.getElementById('job_title_other');
+
+        function toggleOtherJob() {
+            const isOther = jobSelect.value === 'other';
+            jobOther.style.display = isOther ? '' : 'none';
+            jobOther.required = isOther;
+            if (isOther) { jobOther.focus(); }
+        }
+
+        jobSelect.addEventListener('change', toggleOtherJob);
+        jobOther.required = jobSelect.value === 'other';
+    })();
+</script>
+
 @endsection
-```

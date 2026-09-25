@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Builder;
+use App\Support\ProjectHealth;
 
 class Project extends Model
 {
@@ -54,6 +56,7 @@ class Project extends Model
     }
 
     public function tasks(): HasMany { return $this->hasMany(Task::class); }
+
     public function sprints(): HasMany { return $this->hasMany(Sprint::class); }
     public function backlogItems(): HasMany { return $this->hasMany(BacklogItem::class); }
     public function workflows(): HasMany { return $this->hasMany(Workflow::class); }
@@ -70,4 +73,24 @@ class Project extends Model
     public function documents(): HasMany { return $this->hasMany(Document::class); }
     public function lessonsLearned(): HasMany { return $this->hasMany(LessonLearned::class); }
     public function chatChannels(): HasMany { return $this->hasMany(ChatChannel::class); }
+
+    /**
+     * Derived delivery health — never stored, always computed from real
+     * schedule/task/budget data. See App\Support\ProjectHealth.
+     *
+     * @return array{key: string, label: string, slug: string, reasons: array<int, string>}
+     */
+    public function getHealthAttribute(): array
+    {
+        return ProjectHealth::evaluate($this);
+    }
+
+    /**
+     * Eager-loads the task counts ProjectHealth needs, so listing many
+     * projects with health badges doesn't trigger N+1 queries.
+     */
+    public function scopeWithHealthMetrics(Builder $query): Builder
+    {
+        return ProjectHealth::eagerLoad($query);
+    }
 }

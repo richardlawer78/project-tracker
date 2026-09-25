@@ -4,6 +4,36 @@
 
 @section('content')
 
+@php
+    $jobTitles = [
+        'Software Developer',
+        'Frontend Developer',
+        'Backend Developer',
+        'Full Stack Developer',
+        'Mobile App Developer',
+        'UI/UX Designer',
+        'QA Engineer',
+        'DevOps Engineer',
+        'Data Analyst',
+        'Business Analyst',
+        'Project Manager',
+        'Scrum Master',
+        'Product Owner',
+        'Team Lead',
+        'System Administrator',
+    ];
+
+    $currentJobTitle = old('job_title');
+
+    $isOtherJob = $currentJobTitle === 'other'
+        || (!empty($currentJobTitle) && !in_array($currentJobTitle, $jobTitles));
+
+    $otherJobValue = old(
+        'job_title_other',
+        ($isOtherJob && $currentJobTitle !== 'other') ? $currentJobTitle : ''
+    );
+@endphp
+
 <style>
     .user-create-page {
         max-width: 1100px;
@@ -95,10 +125,6 @@
         gap: 7px;
     }
 
-    .user-form-group.full-width {
-        grid-column: 1 / -1;
-    }
-
     .user-form-group label {
         color: #374151;
         font-size: 13px;
@@ -141,6 +167,25 @@
         margin: 0;
         color: #dc2626;
         font-size: 12px;
+    }
+
+    .password-section {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+        padding-top: 4px;
+        margin-top: 4px;
+    }
+
+    .password-section-title {
+        grid-column: 1 / -1;
+        margin: 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #f1f5f9;
+        color: #111827;
+        font-size: 14px;
+        font-weight: 700;
     }
 
     .user-form-actions {
@@ -192,24 +237,6 @@
         transform: translateY(-1px);
     }
 
-    .password-section {
-        grid-column: 1 / -1;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 20px;
-        padding-top: 4px;
-    }
-
-    .password-section-title {
-        grid-column: 1 / -1;
-        margin: 0;
-        padding-bottom: 8px;
-        border-bottom: 1px solid #f1f5f9;
-        color: #111827;
-        font-size: 14px;
-        font-weight: 700;
-    }
-
     .alert-danger {
         margin-bottom: 20px;
         padding: 14px 16px;
@@ -240,7 +267,6 @@
             grid-template-columns: 1fr;
         }
 
-        .user-form-group.full-width,
         .password-section,
         .password-section-title {
             grid-column: auto;
@@ -258,194 +284,297 @@
 
 <div class="user-create-page">
 
-```
-<div class="user-create-header">
-    <div>
-        <h1>Add User</h1>
-        <p>Create a new user and assign their role.</p>
+    <div class="user-create-header">
+        <div>
+            <h1>Add User</h1>
+            <p>Create a new user and assign their role and team information.</p>
+        </div>
+
+        <a href="{{ route('admin.users.index') }}" class="back-btn">
+            <i class="ri-arrow-left-line"></i>
+            Back to Users
+        </a>
     </div>
 
-    <a href="{{ route('admin.users.index') }}" class="back-btn">
-        <i class="ri-arrow-left-line"></i>
-        Back to Users
-    </a>
-</div>
+    @if($errors->any())
+        <div class="alert-danger">
+            <strong>Please correct the following errors:</strong>
 
-@if($errors->any())
-    <div class="alert-danger">
-        <strong>Please correct the following errors:</strong>
+            <ul>
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
 
-        <ul>
-            @foreach($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
+    <div class="user-create-card">
 
-<div class="user-create-card">
+        <div class="user-create-card-header">
+            <h2>User Information</h2>
+            <p>Enter the account details, role, job information, and permissions for the new user.</p>
+        </div>
 
-    <div class="user-create-card-header">
-        <h2>User Information</h2>
-        <p>Enter the account details and permissions for the new user.</p>
-    </div>
+        <form
+            action="{{ route('admin.users.store') }}"
+            method="POST"
+            enctype="multipart/form-data"
+            class="user-create-form"
+        >
+            @csrf
 
-    <form
-        action="{{ route('admin.users.store') }}"
-        method="POST"
-        class="user-create-form"
-    >
-        @csrf
+            <div class="user-form-grid">
 
-        <div class="user-form-grid">
-
-            <div class="user-form-group">
-                <label for="name">Full Name</label>
-
-                <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value="{{ old('name') }}"
-                    placeholder="Enter full name"
-                    autocomplete="name"
-                    required
-                >
-
-                @error('name')
-                    <p class="field-error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div class="user-form-group">
-                <label for="email">Email Address</label>
-
-                <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value="{{ old('email') }}"
-                    placeholder="Enter email address"
-                    autocomplete="email"
-                    required
-                >
-
-                @error('email')
-                    <p class="field-error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div class="user-form-group">
-                <label for="role">Role</label>
-
-                <select id="role" name="role" required>
-                    <option value="">Select a role</option>
-
-                    <option value="admin" {{ old('role') === 'admin' ? 'selected' : '' }}>
-                        Admin
-                    </option>
-
-                    <option value="project-manager" {{ old('role') === 'project-manager' ? 'selected' : '' }}>
-                        Project Manager
-                    </option>
-
-                    <option value="team-lead" {{ old('role') === 'team-lead' ? 'selected' : '' }}>
-                        Team Lead
-                    </option>
-
-                    <option value="developer" {{ old('role') === 'developer' ? 'selected' : '' }}>
-                        Developer
-                    </option>
-
-                    <option value="team-member" {{ old('role') === 'team-member' ? 'selected' : '' }}>
-                        Team Member
-                    </option>
-
-                    <option value="member" {{ old('role') === 'member' ? 'selected' : '' }}>
-                        Member
-                    </option>
-                </select>
-
-                @error('role')
-                    <p class="field-error">{{ $message }}</p>
-                @enderror
-            </div>
-
-            <div></div>
-
-            <div class="password-section">
-
-                <h3 class="password-section-title">
-                    Password
-                </h3>
-
-                <div class="user-form-group">
-                    <label for="password">Initial Password</label>
+                {{-- Profile Photo --}}
+                <div class="user-form-group" style="grid-column: 1 / -1;">
+                    <label for="avatar">Profile Photo (optional)</label>
 
                     <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        placeholder="Enter initial password"
-                        minlength="8"
-                        autocomplete="new-password"
+                        type="file"
+                        id="avatar"
+                        name="avatar"
+                        accept="image/png,image/jpeg,image/webp"
+                    >
+
+                    <p class="user-form-help">JPG, PNG or WebP, up to 2 MB.</p>
+
+                    @error('avatar')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Full Name --}}
+                <div class="user-form-group">
+                    <label for="name">Full Name</label>
+
+                    <input
+                        type="text"
+                        id="name"
+                        name="name"
+                        value="{{ old('name') }}"
+                        placeholder="Enter full name"
+                        autocomplete="name"
                         required
+                    >
+
+                    @error('name')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Email --}}
+                <div class="user-form-group">
+                    <label for="email">Email Address</label>
+
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value="{{ old('email') }}"
+                        placeholder="Enter email address"
+                        autocomplete="email"
+                        required
+                    >
+
+                    @error('email')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Role --}}
+                <div class="user-form-group">
+                    <label for="role">Role</label>
+
+                    <select id="role" name="role" required>
+                        <option value="">Select a role</option>
+
+                        <option value="admin" {{ old('role') === 'admin' ? 'selected' : '' }}>
+                            Admin
+                        </option>
+
+                        <option value="project-manager" {{ old('role') === 'project-manager' ? 'selected' : '' }}>
+                            Project Manager
+                        </option>
+
+                        <option value="team-lead" {{ old('role') === 'team-lead' ? 'selected' : '' }}>
+                            Team Lead
+                        </option>
+
+                        <option value="developer" {{ old('role') === 'developer' ? 'selected' : '' }}>
+                            Developer
+                        </option>
+
+                        <option value="team-member" {{ old('role') === 'team-member' ? 'selected' : '' }}>
+                            Team Member
+                        </option>
+
+                        <option value="member" {{ old('role') === 'member' ? 'selected' : '' }}>
+                            Member
+                        </option>
+                    </select>
+
+                    @error('role')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Job Title --}}
+                <div class="user-form-group">
+                    <label for="job_title">Job Title</label>
+
+                    <select id="job_title" name="job_title">
+                        <option value="">Select a job title</option>
+
+                        @foreach($jobTitles as $title)
+                            <option
+                                value="{{ $title }}"
+                                {{ !$isOtherJob && $currentJobTitle === $title ? 'selected' : '' }}
+                            >
+                                {{ $title }}
+                            </option>
+                        @endforeach
+
+                        <option value="other" {{ $isOtherJob ? 'selected' : '' }}>
+                            Other
+                        </option>
+                    </select>
+
+                    <input
+                        type="text"
+                        id="job_title_other"
+                        name="job_title_other"
+                        value="{{ $otherJobValue }}"
+                        placeholder="Type the job title"
+                        style="{{ $isOtherJob ? '' : 'display: none;' }}"
                     >
 
                     <p class="user-form-help">
-                        Minimum 8 characters. The user can change this password later.
+                        Choose the user's position, or pick "Other" to type your own.
                     </p>
 
-                    @error('password')
+                    @error('job_title')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+
+                    @error('job_title_other')
                         <p class="field-error">{{ $message }}</p>
                     @enderror
                 </div>
 
+                {{-- Availability --}}
                 <div class="user-form-group">
-                    <label for="password_confirmation">Confirm Password</label>
+                    <label for="availability_percent">Availability (%)</label>
 
                     <input
-                        type="password"
-                        id="password_confirmation"
-                        name="password_confirmation"
-                        placeholder="Confirm password"
-                        minlength="8"
-                        autocomplete="new-password"
-                        required
+                        type="number"
+                        id="availability_percent"
+                        name="availability_percent"
+                        value="{{ old('availability_percent', 100) }}"
+                        min="0"
+                        max="100"
+                        placeholder="100"
                     >
 
-                    @error('password_confirmation')
+                    <p class="user-form-help">
+                        Enter the user's availability from 0% to 100%.
+                    </p>
+
+                    @error('availability_percent')
                         <p class="field-error">{{ $message }}</p>
                     @enderror
+                </div>
+
+                {{-- Password Section --}}
+                <div class="password-section">
+
+                    <h3 class="password-section-title">
+                        Password
+                    </h3>
+
+                    <div class="user-form-group">
+                        <label for="password">Initial Password</label>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Enter initial password"
+                            minlength="8"
+                            autocomplete="new-password"
+                            required
+                        >
+
+                        <p class="user-form-help">
+                            Minimum 8 characters. The user can change this password later.
+                        </p>
+
+                        @error('password')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="user-form-group">
+                        <label for="password_confirmation">Confirm Password</label>
+
+                        <input
+                            type="password"
+                            id="password_confirmation"
+                            name="password_confirmation"
+                            placeholder="Confirm password"
+                            minlength="8"
+                            autocomplete="new-password"
+                            required
+                        >
+
+                        @error('password_confirmation')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                 </div>
 
             </div>
 
-        </div>
+            <div class="user-form-actions">
 
-        <div class="user-form-actions">
+                <a
+                    href="{{ route('admin.users.index') }}"
+                    class="user-btn user-btn-secondary"
+                >
+                    Cancel
+                </a>
 
-            <a
-                href="{{ route('admin.users.index') }}"
-                class="user-btn user-btn-secondary"
-            >
-                Cancel
-            </a>
+                <button
+                    type="submit"
+                    class="user-btn user-btn-primary"
+                >
+                    <i class="ri-user-add-line"></i>
+                    Create User
+                </button>
 
-            <button
-                type="submit"
-                class="user-btn user-btn-primary"
-            >
-                <i class="ri-user-add-line"></i>
-                Create User
-            </button>
+            </div>
 
-        </div>
+        </form>
 
-    </form>
-
-</div>
-```
+    </div>
 
 </div>
+
+<script>
+    (function () {
+        const jobSelect = document.getElementById('job_title');
+        const jobOther = document.getElementById('job_title_other');
+
+        function toggleOtherJob() {
+            const isOther = jobSelect.value === 'other';
+            jobOther.style.display = isOther ? '' : 'none';
+            jobOther.required = isOther;
+            if (isOther) { jobOther.focus(); }
+        }
+
+        jobSelect.addEventListener('change', toggleOtherJob);
+        jobOther.required = jobSelect.value === 'other';
+    })();
+</script>
+
 @endsection

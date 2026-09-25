@@ -6,11 +6,13 @@ use App\Models\ChatChannel;
 use App\Models\ChatMessage;
 use App\Models\Milestone;
 use App\Models\Project;
+use App\ProjectAccess;
 use App\Models\ProjectResource;
 use App\Models\Risk;
 use App\Models\Sprint;
 use App\Models\Task;
 use App\Models\User;
+use App\Support\ProjectHealth;
 use App\Support\TrackerFeatures;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -29,6 +31,14 @@ class TrackerController extends Controller
         $taskCount = Task::query()->count();
         $completedTasks = Task::query()->where('status', 'completed')->count();
 
+        // Portfolio-wide health + financial KPIs, derived from real data
+        // (see App\Support\ProjectHealth — nothing here is hardcoded).
+        $healthProjects = Project::query()->withHealthMetrics()->get(['id', 'status', 'progress', 'budget', 'spent', 'start_date', 'end_date']);
+        $healthSummary = ProjectHealth::summarize($healthProjects);
+
+        $totalBudget = (float) Project::query()->sum('budget');
+        $totalSpent = (float) Project::query()->sum('spent');
+
         return view('dashboard', [
             'projectCount' => $projectCount,
             'newProjectCount' => Project::query()->whereBetween('created_at', [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()])->count(),
@@ -40,8 +50,24 @@ class TrackerController extends Controller
             'completionRate' => $taskCount ? (int) round(($completedTasks / $taskCount) * 100) : 0,
             'sprintCount' => Sprint::query()->where('status', 'active')->count(),
             'riskCount' => Risk::query()->where('status', 'open')->count(),
+
+            // Health + financial KPIs (spec section 4)
+            'atRiskProjectCount' => $healthSummary['at_risk'],
+            'criticalProjectCount' => $healthSummary['critical'],
+            'overdueProjectCount' => Project::query()
+                ->whereNotNull('end_date')
+                ->where('end_date', '<', today())
+                ->where('status', '!=', 'completed')
+                ->count(),
+            'overdueTaskCount' => $healthSummary['overdue_tasks_total'],
+            'totalBudget' => $totalBudget,
+            'totalSpent' => $totalSpent,
+            'remainingBudget' => $totalBudget - $totalSpent,
+            'overallCompletion' => (int) round(Project::query()->avg('progress') ?? 0),
+
             'projects' => Project::query()
                 ->withCount(['tasks', 'tasks as completed_tasks_count' => fn ($query) => $query->where('status', 'completed'), 'projectResources'])
+                ->withHealthMetrics()
                 ->latest()->take(6)->get(),
             'tasks' => Task::query()->with(['project:id,name', 'assignee:id,name'])->orderByRaw('due_date asc nulls last')->latest()->take(6)->get(),
             'milestones' => Milestone::query()->with('project:id,name')->whereDate('due_date', '>=', today())
@@ -72,6 +98,7 @@ class TrackerController extends Controller
         return view('projects.index', [
             'projects' => Project::query()
                 ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+                ->withHealthMetrics()
                 ->latest()->paginate(12)->withQueryString(),
         ]);
     }
@@ -104,8 +131,10 @@ class TrackerController extends Controller
         ];
     }
 
-    public function createProject()
+    public function createProject(Request $request)
     {
+        abort_unless(ProjectAccess::canCreate($request->user()), 403, 'Only admins and project managers can create projects.');
+
         return view('projects.form', [
             'project' => new Project,
             'teams' => $this->teamOptions(),
@@ -114,20 +143,29 @@ class TrackerController extends Controller
 
     public function storeProject(Request $request)
     {
-        Project::create($this->projectData($request));
+        abort_unless(ProjectAccess::canCreate($request->user()), 403, 'Only admins and project managers can create projects.');
+
+        $data = $this->projectData($request);
+        $data['owner_id'] = $request->user()->id;
+
+        Project::create($data);
 
         return redirect()->route('projects.index')->with('success', 'Project created successfully.');
     }
 
-    public function showProject(Project $project)
+    public function showProject(Request $request, Project $project)
     {
+        abort_unless(ProjectAccess::canView($request->user(), $project), 403);
+
         $project->load(['tasks' => fn ($query) => $query->latest()->take(8)]);
 
         return view('projects.show', compact('project'));
     }
 
-    public function editProject(Project $project)
+    public function editProject(Request $request, Project $project)
     {
+        abort_unless(ProjectAccess::canManage($request->user(), $project), 403);
+
         return view('projects.form', [
             'project' => $project,
             'teams' => $this->teamOptions(),
@@ -136,13 +174,17 @@ class TrackerController extends Controller
 
     public function updateProject(Request $request, Project $project)
     {
+        abort_unless(ProjectAccess::canManage($request->user(), $project), 403);
+
         $project->update($this->projectData($request));
 
         return redirect()->route('projects.show', $project)->with('success', 'Project updated successfully.');
     }
 
-    public function deleteProject(Project $project)
+    public function deleteProject(Request $request, Project $project)
     {
+        abort_unless(ProjectAccess::canManage($request->user(), $project), 403);
+
         $project->delete();
 
         return redirect()->route('projects.index')->with('success', 'Project deleted.');
@@ -323,6 +365,7 @@ class TrackerController extends Controller
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'budget' => ['nullable', 'numeric', 'min:0'],
+            'spent' => ['nullable', 'numeric', 'min:0'],
             'progress' => ['nullable', 'integer', 'between:0,100'],
         ]);
     }
