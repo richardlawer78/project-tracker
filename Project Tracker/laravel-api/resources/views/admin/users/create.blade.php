@@ -1,6 +1,6 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
-@section('title', 'Add User')
+@section('title', 'Add Member')
 
 @section('content')
 
@@ -286,7 +286,7 @@
 
     <div class="user-create-header">
         <div>
-            <h1>Add User</h1>
+            <h1>Add Member</h1>
             <p>Create a new user and assign their role and team information.</p>
         </div>
 
@@ -484,7 +484,56 @@
                     @enderror
                 </div>
 
+                {{-- Password Section --}}
+                <div class="password-section">
+
+                    <h3 class="password-section-title">
+                        Password
+                    </h3>
+
+                    <div class="user-form-group">
+                        <label for="password">Initial Password</label>
+
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Enter initial password"
+                            minlength="8"
+                            autocomplete="new-password"
+                            required
+                        >
+
+                        <p class="user-form-help">
+                            Minimum 8 characters. The user can change this password later.
+                        </p>
+
+                        @error('password')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div class="user-form-group">
+                        <label for="password_confirmation">Confirm Password</label>
+
+                        <input
+                            type="password"
+                            id="password_confirmation"
+                            name="password_confirmation"
+                            placeholder="Confirm password"
+                            minlength="8"
+                            autocomplete="new-password"
+                            required
+                        >
+
+                        @error('password_confirmation')
+                            <p class="field-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                 </div>
+
+            </div>
 
             <div class="user-form-actions">
 

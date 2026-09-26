@@ -340,6 +340,7 @@ class TrackerController extends Controller
 
         return view('projects.form', [
             'project' => new Project,
+            'teams' => $this->teamOptions(),
             'users' => User::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'email', 'job_title']),
@@ -401,6 +402,7 @@ class TrackerController extends Controller
 
         return view('projects.form', [
             'project' => $project,
+            'teams' => $this->teamOptions(),
             'users' => User::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'email', 'job_title']),

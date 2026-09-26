@@ -17,6 +17,12 @@ class TrackerConversionTest extends TestCase
 
     public function test_dashboard_and_core_pages_load(): void
     {
+        $user = User::factory()->create([
+            'role' => 'project-manager',
+        ]);
+
+        $this->actingAs($user);
+
         $this->get('/')->assertOk();
         $this->get('/projects')->assertOk();
         $this->get('/projects/create')->assertOk();
@@ -32,32 +38,58 @@ class TrackerConversionTest extends TestCase
 
     public function test_project_crud(): void
     {
+        $user = User::factory()->create([
+            'role' => 'project-manager',
+        ]);
+
+        $member = User::factory()->create();
+
+        $this->actingAs($user);
+
         $this->post('/projects', [
             'name' => 'Website Redesign',
             'project_type' => 'agile',
             'status' => 'planning',
             'priority' => 'high',
+            'members' => [$user->id, $member->id],
         ])->assertRedirect('/projects');
 
         $project = Project::query()->first();
+
         $this->assertNotNull($project);
-        $this->get('/projects/'.$project->id)->assertOk()->assertSee('Website Redesign');
+        $this->assertSame($user->id, $project->owner_id);
+
+        $this->get('/projects/'.$project->id)
+            ->assertOk()
+            ->assertSee('Website Redesign');
 
         $this->put('/projects/'.$project->id, [
             'name' => 'Website Rebuild',
             'project_type' => 'agile',
             'status' => 'in-progress',
             'priority' => 'high',
+            'members' => [$user->id, $member->id],
         ])->assertRedirect('/projects/'.$project->id);
 
-        $this->delete('/projects/'.$project->id)->assertRedirect('/projects');
-        $this->assertDatabaseMissing('projects', ['id' => $project->id]);
+        $this->delete('/projects/'.$project->id)
+            ->assertRedirect('/projects');
+
+        $this->assertDatabaseMissing('projects', [
+            'id' => $project->id,
+        ]);
     }
 
     public function test_task_sprint_milestone_and_risk_crud(): void
     {
-        $user = User::factory()->create();
-        $project = Project::factory()->create(['owner_id' => $user->id]);
+        $user = User::factory()->create([
+            'role' => 'project-manager',
+        ]);
+
+        $project = Project::factory()->create([
+            'owner_id' => $user->id,
+        ]);
+
+        $this->actingAs($user);
 
         $this->post('/tasks', [
             'project_id' => $project->id,
@@ -65,10 +97,17 @@ class TrackerConversionTest extends TestCase
             'status' => 'pending',
             'priority' => 'high',
         ])->assertRedirect('/tasks');
-        $this->assertDatabaseHas('tasks', ['title' => 'Design homepage']);
 
-        $task = Task::query()->first();
-        $this->patch('/tasks/'.$task->id.'/status', ['status' => 'completed'])->assertRedirect();
+        $this->assertDatabaseHas('tasks', [
+            'title' => 'Design homepage',
+        ]);
+
+        $task = Task::query()->firstOrFail();
+
+        $this->patch('/tasks/'.$task->id.'/status', [
+            'status' => 'completed',
+        ])->assertRedirect();
+
         $this->assertSame('completed', $task->fresh()->status);
 
         $this->post('/agile/sprints', [
@@ -78,7 +117,10 @@ class TrackerConversionTest extends TestCase
             'end_date' => now()->addWeeks(2)->toDateString(),
             'status' => 'active',
         ])->assertRedirect('/agile/sprints');
-        $this->assertDatabaseHas('sprints', ['name' => 'Sprint 1']);
+
+        $this->assertDatabaseHas('sprints', [
+            'name' => 'Sprint 1',
+        ]);
 
         $this->post('/resources/milestones', [
             'project_id' => $project->id,
@@ -86,7 +128,10 @@ class TrackerConversionTest extends TestCase
             'due_date' => now()->addMonth()->toDateString(),
             'status' => 'upcoming',
         ])->assertRedirect('/resources/milestones');
-        $this->assertDatabaseHas('milestones', ['name' => 'MVP Release']);
+
+        $this->assertDatabaseHas('milestones', [
+            'name' => 'MVP Release',
+        ]);
 
         $this->post('/quality/risks', [
             'project_id' => $project->id,
@@ -97,22 +142,39 @@ class TrackerConversionTest extends TestCase
             'status' => 'open',
             'owner_id' => $user->id,
         ])->assertRedirect('/quality/risks');
-        $this->assertDatabaseHas('risks', ['title' => 'Scope creep']);
 
-        $sprint = Sprint::query()->first();
-        $milestone = Milestone::query()->first();
-        $risk = Risk::query()->first();
+        $this->assertDatabaseHas('risks', [
+            'title' => 'Scope creep',
+        ]);
 
-        $this->delete('/agile/sprints/'.$sprint->id)->assertRedirect('/agile/sprints');
-        $this->delete('/resources/milestones/'.$milestone->id)->assertRedirect('/resources/milestones');
-        $this->delete('/quality/risks/'.$risk->id)->assertRedirect('/quality/risks');
-        $this->delete('/tasks/'.$task->id)->assertRedirect('/tasks');
+        $sprint = Sprint::query()->firstOrFail();
+        $milestone = Milestone::query()->firstOrFail();
+        $risk = Risk::query()->firstOrFail();
+
+        $this->delete('/agile/sprints/'.$sprint->id)
+            ->assertRedirect('/agile/sprints');
+
+        $this->delete('/resources/milestones/'.$milestone->id)
+            ->assertRedirect('/resources/milestones');
+
+        $this->delete('/quality/risks/'.$risk->id)
+            ->assertRedirect('/quality/risks');
+
+        $this->delete('/tasks/'.$task->id)
+            ->assertRedirect('/tasks');
     }
 
-    public function test_api_resources_still_work(): void
+    public function test_api_resources_still_work_for_authenticated_users(): void
     {
-        $user = User::factory()->create();
-        $project = Project::factory()->create(['owner_id' => $user->id]);
+        $user = User::factory()->create([
+            'role' => 'project-manager',
+        ]);
+
+        $project = Project::factory()->create([
+            'owner_id' => $user->id,
+        ]);
+
+        $this->actingAs($user, 'sanctum');
 
         $this->getJson('/api/projects')->assertOk();
         $this->getJson('/api/tasks')->assertOk();

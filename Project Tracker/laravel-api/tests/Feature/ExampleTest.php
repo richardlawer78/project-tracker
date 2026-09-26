@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Tests\TestCase;
 
@@ -9,13 +10,20 @@ class ExampleTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    /**
-     * A basic test example.
-     */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_guests_are_redirected_to_login(): void
     {
-        $response = $this->get('/');
+        $this->get('/')
+            ->assertRedirect('/login');
+    }
 
-        $response->assertStatus(200);
+    public function test_authenticated_users_can_access_the_dashboard(): void
+    {
+        $user = User::factory()->create([
+            'role' => 'project-manager',
+        ]);
+
+        $this->actingAs($user)
+            ->get('/')
+            ->assertOk();
     }
 }

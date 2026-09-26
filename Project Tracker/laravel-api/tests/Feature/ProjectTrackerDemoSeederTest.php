@@ -20,30 +20,55 @@ class ProjectTrackerDemoSeederTest extends TestCase
         $projectCount = Project::query()->count();
         $taskCount = Task::query()->count();
         $userCount = User::query()->count();
-        $this->post('/projects', [
-            'name' => 'University Project Tracker',
-            'client' => 'Accra Technical University',
-            'team' => 'Student Development Team',
-            'project_type' => 'agile',
-            'status' => 'in-progress',
-            'priority' => 'high',
-        ])->assertRedirect('/projects');
 
-        $userProject = Project::query()->where('name', 'University Project Tracker')->firstOrFail();
+        $user = User::factory()->create([
+            'role' => 'project-manager',
+        ]);
+
+        $memberIds = User::query()
+            ->where('id', '!=', $user->id)
+            ->orderBy('id')
+            ->limit(2)
+            ->pluck('id')
+            ->all();
+
+        $this->actingAs($user)
+            ->post('/projects', [
+                'name' => 'University Project Tracker',
+                'client' => 'Accra Technical University',
+                'team' => 'Student Development Team',
+                'project_type' => 'agile',
+                'status' => 'in-progress',
+                'priority' => 'high',
+                'members' => $memberIds,
+            ])
+            ->assertRedirect('/projects');
+
+        $userProject = Project::query()
+            ->where('name', 'University Project Tracker')
+            ->firstOrFail();
 
         $this->seed(ProjectTrackerDemoSeeder::class);
 
         $this->assertSame($projectCount + 1, Project::query()->count());
         $this->assertSame($taskCount, Task::query()->count());
-        $this->assertSame($userCount, User::query()->count());
-        $this->assertDatabaseHas('projects', ['id' => $userProject->id, 'name' => 'University Project Tracker']);
+        $this->assertSame($userCount + 1, User::query()->count());
+        $this->assertDatabaseHas('projects', [
+            'id' => $userProject->id,
+            'name' => 'University Project Tracker',
+        ]);
     }
 
     public function test_seeded_people_are_available_in_the_task_assignment_dropdown(): void
     {
         $this->seed(ProjectTrackerDemoSeeder::class);
 
-        $this->get('/tasks/create')
+        $user = User::factory()->create([
+            'role' => 'project-manager',
+        ]);
+
+        $this->actingAs($user)
+            ->get('/tasks/create')
             ->assertOk()
             ->assertSee('Richard Dom')
             ->assertSee('Nikki Jey')

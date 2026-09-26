@@ -1,4 +1,4 @@
-@extends('layouts.app')
+﻿@extends('layouts.app')
 
 @section('title', 'User Management')
 
@@ -310,7 +310,7 @@
 
     <a href="{{ route('admin.users.create') }}" class="users-add-btn">
         <i class="ri-user-add-line"></i>
-        Add User
+        Add Member
     </a>
 </div>
 
@@ -401,7 +401,7 @@
                             </td>
 
                             <td>
-                                {{ $user->job_title ?? '—' }}
+                                {{ $user->job_title ?? 'â€”' }}
                             </td>
 
                             <td>
@@ -419,7 +419,7 @@
                                         </span>
                                     </div>
                                 @else
-                                    —
+                                    â€”
                                 @endif
                             </td>
 
