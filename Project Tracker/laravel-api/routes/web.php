@@ -1,4 +1,4 @@
-﻿ <?php
+ <?php
 
 use App\Http\Controllers\TrackerController;
 use App\Http\Controllers\WebAuthController;
@@ -38,7 +38,10 @@ Route::post('/logout', [WebAuthController::class, 'logout'])->name('logout');
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth')->group(function () {
+    Route::get('/public/projects/{project}', [TrackerController::class, 'showPublicProject'])
+        ->name('projects.public.show');        Route::post('/public/projects/{project}/interest', [\App\Http\Controllers\PublicProjectInterestController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('projects.public.interest');    Route::middleware('auth')->group(function () {
 
     // Project Tracker Dashboard
 
@@ -189,10 +192,16 @@ Route::middleware('auth')->group(function () {
     }
 });
 
-Route::middleware('auth')->group(function () {
+    Route::get('/public/projects/{project}', [TrackerController::class, 'showPublicProject'])
+        ->name('projects.public.show');        Route::post('/public/projects/{project}/interest', [\App\Http\Controllers\PublicProjectInterestController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('projects.public.interest');    Route::middleware('auth')->group(function () {
     Route::get('/change-password', [WebAuthController::class, 'showChangePassword'])
         ->name('password.change');
 
     Route::post('/change-password', [WebAuthController::class, 'changePassword'])
         ->name('password.change.update');
 });
+
+
+

@@ -64,7 +64,10 @@ class Project extends Model
     public function budgetItems(): HasMany { return $this->hasMany(BudgetItem::class); }
     public function timeEntries(): HasMany { return $this->hasMany(TimeEntry::class); }
     public function projectResources(): HasMany { return $this->hasMany(ProjectResource::class); }
-    public function stakeholders(): HasMany { return $this->hasMany(Stakeholder::class); }
+    public function stakeholders(): HasMany { return $this->hasMany(Stakeholder::class); }    public function projectInterests(): HasMany
+    {
+        return $this->hasMany(ProjectInterest::class);
+    }
     public function kickoffs(): HasMany { return $this->hasMany(Kickoff::class); }
     public function dorDodItems(): HasMany { return $this->hasMany(DorDodItem::class); }
     public function testCases(): HasMany { return $this->hasMany(TestCase::class); }

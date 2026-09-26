@@ -167,7 +167,25 @@ class TrackerController extends Controller
             ->route('projects.index')
             ->with('success', 'Project created successfully.');
     }
-    public function showProject(Request $request, Project $project)
+    public function showPublicProject(Project $project)
+    {
+        $project->load('milestones');
+        return \Inertia\Inertia::render('projects/PublicProjectDetails', [
+            'project' => $project->only([
+                'id',
+                'name',
+                'description',
+                'status',
+                'progress',
+                'priority',
+                'start_date',
+                'end_date',
+                'project_type',
+                'methodology',
+            ]),
+            'milestones' => $project->milestones,
+        ]);
+    }    public function showProject(Request $request, Project $project)
     {
         abort_unless(ProjectAccess::canView($request->user(), $project), 403);
 
@@ -602,3 +620,4 @@ class TrackerController extends Controller
         ])->id;
     }
 }
+
