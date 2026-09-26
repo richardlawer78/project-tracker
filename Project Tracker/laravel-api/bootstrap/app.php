@@ -18,6 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => AdminMiddleware::class,
         ]);
 
+        $middleware->web(append: [
+            \App\Http\Middleware\ForcePasswordChange::class,
+            \App\Http\Middleware\HandleInertiaRequests::class,
+        ]);
+
         $middleware->redirectGuestsTo(function (Request $request) {
             if ($request->is('api/*')) {
                 return null;

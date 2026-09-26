@@ -133,26 +133,40 @@ class TrackerController extends Controller
 
     public function createProject(Request $request)
     {
-        abort_unless(ProjectAccess::canCreate($request->user()), 403, 'Only admins and project managers can create projects.');
+        abort_unless(
+            ProjectAccess::canCreate($request->user()),
+            403,
+            'Only admins and project managers can create projects.'
+        );
 
         return view('projects.form', [
             'project' => new Project,
-            'teams' => $this->teamOptions(),
+            'users' => User::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'email', 'job_title']),
         ]);
     }
-
     public function storeProject(Request $request)
     {
-        abort_unless(ProjectAccess::canCreate($request->user()), 403, 'Only admins and project managers can create projects.');
+        abort_unless(
+            ProjectAccess::canCreate($request->user()),
+            403,
+            'Only admins and project managers can create projects.'
+        );
 
         $data = $this->projectData($request);
+        $memberIds = $this->projectMembersData($request);
+
         $data['owner_id'] = $request->user()->id;
 
-        Project::create($data);
+        $project = Project::create($data);
 
-        return redirect()->route('projects.index')->with('success', 'Project created successfully.');
+        $project->members()->sync($memberIds);
+
+        return redirect()
+            ->route('projects.index')
+            ->with('success', 'Project created successfully.');
     }
-
     public function showProject(Request $request, Project $project)
     {
         abort_unless(ProjectAccess::canView($request->user(), $project), 403);
@@ -166,21 +180,29 @@ class TrackerController extends Controller
     {
         abort_unless(ProjectAccess::canManage($request->user(), $project), 403);
 
+        $project->load('members');
+
         return view('projects.form', [
             'project' => $project,
-            'teams' => $this->teamOptions(),
+            'users' => User::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'email', 'job_title']),
         ]);
     }
-
     public function updateProject(Request $request, Project $project)
     {
         abort_unless(ProjectAccess::canManage($request->user(), $project), 403);
 
         $project->update($this->projectData($request));
 
-        return redirect()->route('projects.show', $project)->with('success', 'Project updated successfully.');
-    }
+        $memberIds = $this->projectMembersData($request);
 
+        $project->members()->sync($memberIds);
+
+        return redirect()
+            ->route('projects.show', $project)
+            ->with('success', 'Project updated successfully.');
+    }
     public function deleteProject(Request $request, Project $project)
     {
         abort_unless(ProjectAccess::canManage($request->user(), $project), 403);
@@ -358,8 +380,7 @@ class TrackerController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'client' => ['nullable', 'string', 'max:255'],
-            'team' => ['nullable', 'string', 'max:255'],
-            'project_type' => ['required', 'in:predictive,agile,hybrid'],
+                        'project_type' => ['required', 'in:predictive,agile,hybrid'],
             'status' => ['required', 'in:planning,in-progress,on-hold,completed'],
             'priority' => ['required', 'in:low,medium,high'],
             'start_date' => ['nullable', 'date'],
@@ -368,6 +389,14 @@ class TrackerController extends Controller
             'spent' => ['nullable', 'numeric', 'min:0'],
             'progress' => ['nullable', 'integer', 'between:0,100'],
         ]);
+    }
+
+    private function projectMembersData(Request $request): array
+    {
+        return $request->validate([
+            'members' => ['required', 'array', 'min:2'],
+            'members.*' => ['integer', 'distinct', 'exists:users,id'],
+        ])['members'];
     }
 
     private function teamOptions(): array

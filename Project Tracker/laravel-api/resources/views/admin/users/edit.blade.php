@@ -595,62 +595,7 @@
                 </div>
 
 
-                {{-- PASSWORD SECTION (optional on edit) --}}
-                <div class="password-section">
-
-                    <h3 class="password-section-title">
-                        Password
-                    </h3>
-
-                    <div class="user-form-group">
-
-                        <label for="password">
-                            New Password
-                        </label>
-
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            placeholder="Leave blank to keep current password"
-                            minlength="8"
-                            autocomplete="new-password"
-                        >
-
-                        <p class="user-form-help">
-                            Only fill this in to change the password. Minimum 8 characters.
-                        </p>
-
-                        @error('password')
-                            <p class="field-error">{{ $message }}</p>
-                        @enderror
-
-                    </div>
-
-                    <div class="user-form-group">
-
-                        <label for="password_confirmation">
-                            Confirm New Password
-                        </label>
-
-                        <input
-                            type="password"
-                            id="password_confirmation"
-                            name="password_confirmation"
-                            placeholder="Confirm new password"
-                            minlength="8"
-                            autocomplete="new-password"
-                        >
-
-                        @error('password_confirmation')
-                            <p class="field-error">{{ $message }}</p>
-                        @enderror
-
-                    </div>
-
-                </div>
-
-            </div>
+                {{-- PASSWORD SECTION (optional on edit) --}}</div>
 
 
             {{-- BUTTONS --}}

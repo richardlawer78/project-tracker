@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Notifications\UserInvitation;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -50,6 +51,8 @@ class UserController extends Controller
             'must_change_password' => true,
             'temporary_password_expires_at' => now()->addHours(24),
         ]);
+
+        $user->notify(new UserInvitation($temporaryPassword));
 
         return response()->json([
             'message' => 'User created successfully.',

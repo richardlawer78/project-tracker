@@ -10,6 +10,10 @@ class WebAuthController extends Controller
     public function showLogin()
     {
         if (Auth::check()) {
+            if (Auth::user()->must_change_password) {
+                return redirect()->route('password.change');
+            }
+
             if (Auth::user()->role === 'admin') {
                 return redirect()->route('admin.dashboard');
             }
@@ -37,7 +41,6 @@ class WebAuthController extends Controller
                 ->withInput($request->only('email', 'remember', 'login_as'));
         }
 
-        // Signing in as Admin requires an administrator account.
         if ($loginAs === 'admin' && Auth::user()->role !== 'admin') {
             Auth::logout();
 
@@ -53,17 +56,36 @@ class WebAuthController extends Controller
 
         $request->session()->regenerate();
 
+        $user = Auth::user();
+
+        if ($user->must_change_password) {
+            if ($user->temporary_password_expires_at && $user->temporary_password_expires_at->isPast()) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                return back()->withErrors([
+                    'email' => 'Your temporary password has expired. Please contact your administrator for a new one.',
+                ]);
+            }
+
+            return redirect()->route('password.change');
+        }
+
         if ($loginAs === 'admin') {
             return redirect()->route('admin.dashboard');
         }
 
-        // Send people to the page they were trying to open (e.g. an invited project).
         return redirect()->intended(route('dashboard'));
     }
 
     public function showRegister()
     {
         if (Auth::check()) {
+            if (Auth::user()->must_change_password) {
+                return redirect()->route('password.change');
+            }
+
             if (Auth::user()->role === 'admin') {
                 return redirect()->route('admin.dashboard');
             }
@@ -93,6 +115,44 @@ class WebAuthController extends Controller
         $request->session()->regenerate();
 
         return redirect()->intended(route('dashboard'));
+    }
+
+    public function showChangePassword()
+    {
+        if (!Auth::check()) {
+            return redirect()->route('login');
+        }
+
+        return view('auth.change-password');
+    }
+
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = Auth::user();
+
+        if (!Auth::validate([
+            'email' => $user->email,
+            'password' => $request->current_password,
+        ])) {
+            return back()->withErrors([
+                'current_password' => 'The current password is incorrect.',
+            ]);
+        }
+
+        $user->update([
+            'password' => $request->password,
+            'must_change_password' => false,
+            'temporary_password_expires_at' => null,
+        ]);
+
+        return redirect()
+            ->route('dashboard')
+            ->with('success', 'Password changed successfully. Welcome to Project Tracker!');
     }
 
     public function logout(Request $request)

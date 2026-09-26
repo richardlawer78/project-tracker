@@ -188,3 +188,11 @@ Route::middleware('auth')->group(function () {
             ->name("web.{$feature}.destroy");
     }
 });
+
+Route::middleware('auth')->group(function () {
+    Route::get('/change-password', [WebAuthController::class, 'showChangePassword'])
+        ->name('password.change');
+
+    Route::post('/change-password', [WebAuthController::class, 'changePassword'])
+        ->name('password.change.update');
+});

@@ -1,4 +1,4 @@
-ï»¿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title', $project->exists ? 'Edit project' : 'New project')
 
@@ -27,7 +27,7 @@
             <span class="form-section-icon"><i class="ri-folder-info-line" aria-hidden="true"></i></span>
             <div>
                 <h2>Project details</h2>
-                <p>The basics â€” what it's called and who it's for.</p>
+                <p>The basics — what it's called and who it's for.</p>
             </div>
         </div>
 
@@ -45,16 +45,118 @@
 
             <label>
                 Team
-                <select name="team">
-                    <option value="">Select a team</option>
 
-                    @foreach($teams as $team)
-                        <option value="{{ $team }}" @selected(old('team', $project->team) === $team)>
-                            {{ $team }}
+                @php
+                    $selectedMemberIds = old(
+                        'members',
+                        $project->exists
+                            ? $project->members->pluck('id')->all()
+                            : []
+                    );
+                @endphp
+
+                <select id="team-user-select">
+                    <option value="">Select a user</option>
+
+                    @foreach($users as $user)
+                        <option value="{{ $user->id }}" data-name="{{ $user->name }}">
+                            {{ $user->name }}
+                            @if($user->job_title)
+                                — {{ $user->job_title }}
+                            @endif
                         </option>
                     @endforeach
                 </select>
+
+                <div id="selected-team-members" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+
+                <div id="team-member-inputs"></div>
+
+                <small>
+                    Select the users who will work on this project. Choose them one at a time.
+                    At least 2 team members are required.
+                </small>
+
+                @error('members')
+                    <small class="error">{{ $message }}</small>
+                @enderror
             </label>
+
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const select = document.getElementById('team-user-select');
+                    const selectedBox = document.getElementById('selected-team-members');
+                    const inputsBox = document.getElementById('team-member-inputs');
+
+                    let selectedUsers = @json($selectedMemberIds);
+
+                    selectedUsers = selectedUsers.map(Number);
+
+                    function renderSelectedUsers() {
+                        selectedBox.innerHTML = '';
+                        inputsBox.innerHTML = '';
+
+                        selectedUsers.forEach(function (userId) {
+                            const option = Array.from(select.options).find(
+                                option => Number(option.value) === Number(userId)
+                            );
+
+                            if (!option) return;
+
+                            const badge = document.createElement('span');
+                            badge.style.cssText =
+                                'display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #ddd;border-radius:999px;background:#f5f5f5;';
+
+                            badge.innerHTML = `
+                                <span>${option.dataset.name}</span>
+                                <button
+                                    type="button"
+                                    data-remove="${userId}"
+                                    style="border:0;background:none;cursor:pointer;font-size:16px;"
+                                >×</button>
+                            `;
+
+                            selectedBox.appendChild(badge);
+
+                            const hidden = document.createElement('input');
+                            hidden.type = 'hidden';
+                            hidden.name = 'members[]';
+                            hidden.value = userId;
+
+                            inputsBox.appendChild(hidden);
+                        });
+
+                        select.value = '';
+                    }
+
+                    select.addEventListener('change', function () {
+                        const userId = Number(this.value);
+
+                        if (!userId) return;
+
+                        if (!selectedUsers.includes(userId)) {
+                            selectedUsers.push(userId);
+                            renderSelectedUsers();
+                        }
+                    });
+
+                    selectedBox.addEventListener('click', function (event) {
+                        const button = event.target.closest('[data-remove]');
+
+                        if (!button) return;
+
+                        const userId = Number(button.dataset.remove);
+
+                        selectedUsers = selectedUsers.filter(
+                            id => id !== userId
+                        );
+
+                        renderSelectedUsers();
+                    });
+
+                    renderSelectedUsers();
+                });
+            </script>
 
             <label>
                 Methodology
@@ -149,7 +251,7 @@
                     <input type="number" min="0" max="100" name="progress" value="{{ old('progress', (int) $project->progress) }}" placeholder="0">
                     <span>%</span>
                 </div>
-                <small>Set manually â€” no longer auto-calculated from tasks.</small>
+                <small>Set manually — no longer auto-calculated from tasks.</small>
                 @error('progress')<small class="error">{{ $message }}</small>@enderror
             </label>
         </div>
@@ -179,3 +281,4 @@
 </form>
 
 @endsection
+
