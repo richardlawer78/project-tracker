@@ -50,7 +50,10 @@ class TaskController extends Controller
 
         $project = \App\Models\Project::findOrFail($data['project_id']);
 
-        $this->authorize('view', $project);
+        abort_unless(
+            \App\ProjectAccess::canCreateIn($request->user(), $project),
+            403
+        );
 
         $task = Task::create($data);
 

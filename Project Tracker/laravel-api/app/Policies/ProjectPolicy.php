@@ -20,7 +20,7 @@ class ProjectPolicy
 
     public function create(User $user): bool
     {
-        return true;
+        return ProjectAccess::canCreate($user);
     }
 
     public function update(User $user, Project $project): bool

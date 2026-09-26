@@ -21,85 +21,232 @@ use Illuminate\Validation\Rule;
 
 class TrackerController extends Controller
 {
-    public function dashboard()
+    public function dashboard(Request $request)
     {
         $today = today();
         $weekStart = $today->copy()->startOfWeek(Carbon::SUNDAY);
         $lastWeekStart = $weekStart->copy()->subWeek();
         $months = collect(range(5, 0))->map(fn (int $offset) => $today->copy()->subMonths($offset)->startOfMonth());
-        $projectCount = Project::query()->count();
-        $taskCount = Task::query()->count();
-        $completedTasks = Task::query()->where('status', 'completed')->count();
 
-        // Portfolio-wide health + financial KPIs, derived from real data
-        // (see App\Support\ProjectHealth — nothing here is hardcoded).
-        $healthProjects = Project::query()->withHealthMetrics()->get(['id', 'status', 'progress', 'budget', 'spent', 'start_date', 'end_date']);
+        $user = $request->user();
+        $visibleProjectIds = ProjectAccess::visibleProjectIds($user);
+
+        $projectCountQuery = Project::query();
+        $taskCountQuery = Task::query();
+        $completedTasksQuery = Task::query()->where('status', 'completed');
+        $healthProjectsQuery = Project::query()->withHealthMetrics();
+        $totalBudgetQuery = Project::query();
+        $totalSpentQuery = Project::query();
+
+        if ($visibleProjectIds !== null) {
+            $projectCountQuery->whereIn('id', $visibleProjectIds);
+            $healthProjectsQuery->whereIn('id', $visibleProjectIds);
+            $totalBudgetQuery->whereIn('id', $visibleProjectIds);
+            $totalSpentQuery->whereIn('id', $visibleProjectIds);
+        }
+
+        ProjectAccess::limitToVisible($taskCountQuery, $user);
+        ProjectAccess::limitToVisible($completedTasksQuery, $user);
+
+        $projectCount = $projectCountQuery->count();
+        $taskCount = $taskCountQuery->count();
+        $completedTasks = $completedTasksQuery->count();
+
+        $healthProjects = $healthProjectsQuery
+            ->get(['id', 'status', 'progress', 'budget', 'spent', 'start_date', 'end_date']);
+
         $healthSummary = ProjectHealth::summarize($healthProjects);
 
-        $totalBudget = (float) Project::query()->sum('budget');
-        $totalSpent = (float) Project::query()->sum('spent');
+        $totalBudget = (float) $totalBudgetQuery->sum('budget');
+        $totalSpent = (float) $totalSpentQuery->sum('spent');
+
+        $newProjectCountQuery = Project::query()->whereBetween('created_at', [
+            $today->copy()->startOfMonth(),
+            $today->copy()->endOfMonth(),
+        ]);
+
+        $activeProjectCountQuery = Project::query()->where('status', 'in-progress');
+        $pendingProjectCountQuery = Project::query()->whereIn('status', ['planning', 'on-hold']);
+        $completedProjectCountQuery = Project::query()->where('status', 'completed');
+
+        $overdueProjectCountQuery = Project::query()
+            ->whereNotNull('end_date')
+            ->where('end_date', '<', today())
+            ->where('status', '!=', 'completed');
+
+        $averageProgressQuery = Project::query();
+
+        $projectsQuery = Project::query()
+            ->withCount([
+                'tasks',
+                'tasks as completed_tasks_count' => fn ($query) => $query->where('status', 'completed'),
+                'projectResources',
+            ])
+            ->withHealthMetrics()
+            ->latest()
+            ->take(6);
+
+        $tasksQuery = Task::query()
+            ->with(['project:id,name', 'assignee:id,name'])
+            ->orderByRaw('due_date asc nulls last')
+            ->latest()
+            ->take(6);
+
+        $milestonesQuery = Milestone::query()
+            ->with('project:id,name')
+            ->whereDate('due_date', '>=', today())
+            ->orderBy('due_date')
+            ->take(5);
+
+        $risksQuery = Risk::query()
+            ->with('project:id,name')
+            ->where('status', 'open')
+            ->latest()
+            ->take(4);
+
+        $teamMembersQuery = ProjectResource::query()
+            ->with([
+                'user' => fn ($query) => $query
+                    ->select('id', 'name', 'job_title', 'avatar', 'availability_percent')
+                    ->withCount('assignedTasks'),
+                'project:id,name',
+            ])
+            ->latest()
+            ->take(5);
+
+        if ($visibleProjectIds !== null) {
+            $newProjectCountQuery->whereIn('id', $visibleProjectIds);
+            $activeProjectCountQuery->whereIn('id', $visibleProjectIds);
+            $pendingProjectCountQuery->whereIn('id', $visibleProjectIds);
+            $completedProjectCountQuery->whereIn('id', $visibleProjectIds);
+            $overdueProjectCountQuery->whereIn('id', $visibleProjectIds);
+            $averageProgressQuery->whereIn('id', $visibleProjectIds);
+            $projectsQuery->whereIn('id', $visibleProjectIds);
+        }
+
+        ProjectAccess::limitToVisible($tasksQuery, $user);
+        ProjectAccess::limitToVisible($milestonesQuery, $user);
+        ProjectAccess::limitToVisible($risksQuery, $user);
+        ProjectAccess::limitToVisible($teamMembersQuery, $user, 'project_id');
+
+        $projectActivity = $months->map(function (Carbon $month) use ($visibleProjectIds) {
+            $query = Project::query()->whereBetween('created_at', [
+                $month,
+                $month->copy()->endOfMonth(),
+            ]);
+
+            if ($visibleProjectIds !== null) {
+                $query->whereIn('id', $visibleProjectIds);
+            }
+
+            return $query->count();
+        })->all();
+
+        $taskActivity = $months->map(function (Carbon $month) use ($user) {
+            $query = Task::query()->whereBetween('created_at', [
+                $month,
+                $month->copy()->endOfMonth(),
+            ]);
+
+            ProjectAccess::limitToVisible($query, $user);
+
+            return $query->count();
+        })->all();
+
+        $thisWeekTasks = collect(range(0, 6))->map(function (int $day) use ($weekStart, $user) {
+            $query = Task::query()->whereDate(
+                'created_at',
+                $weekStart->copy()->addDays($day)
+            );
+
+            ProjectAccess::limitToVisible($query, $user);
+
+            return $query->count();
+        })->all();
+
+        $lastWeekTasks = collect(range(0, 6))->map(function (int $day) use ($lastWeekStart, $user) {
+            $query = Task::query()->whereDate(
+                'created_at',
+                $lastWeekStart->copy()->addDays($day)
+            );
+
+            ProjectAccess::limitToVisible($query, $user);
+
+            return $query->count();
+        })->all();
+
+        $sprintCountQuery = Sprint::query()->where('status', 'active');
+        $riskCountQuery = Risk::query()->where('status', 'open');
+
+        ProjectAccess::limitToVisible($sprintCountQuery, $user);
+        ProjectAccess::limitToVisible($riskCountQuery, $user);
 
         return view('dashboard', [
             'projectCount' => $projectCount,
-            'newProjectCount' => Project::query()->whereBetween('created_at', [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()])->count(),
-            'activeProjectCount' => Project::query()->where('status', 'in-progress')->count(),
-            'pendingProjectCount' => Project::query()->whereIn('status', ['planning', 'on-hold'])->count(),
-            'completedProjectCount' => Project::query()->where('status', 'completed')->count(),
+            'newProjectCount' => $newProjectCountQuery->count(),
+            'activeProjectCount' => $activeProjectCountQuery->count(),
+            'pendingProjectCount' => $pendingProjectCountQuery->count(),
+            'completedProjectCount' => $completedProjectCountQuery->count(),
             'taskCount' => $taskCount,
             'completedTasks' => $completedTasks,
-            'completionRate' => $taskCount ? (int) round(($completedTasks / $taskCount) * 100) : 0,
-            'sprintCount' => Sprint::query()->where('status', 'active')->count(),
-            'riskCount' => Risk::query()->where('status', 'open')->count(),
+            'completionRate' => $taskCount
+                ? (int) round(($completedTasks / $taskCount) * 100)
+                : 0,
+            'sprintCount' => $sprintCountQuery->count(),
+            'riskCount' => $riskCountQuery->count(),
 
-            // Health + financial KPIs (spec section 4)
             'atRiskProjectCount' => $healthSummary['at_risk'],
             'criticalProjectCount' => $healthSummary['critical'],
-            'overdueProjectCount' => Project::query()
-                ->whereNotNull('end_date')
-                ->where('end_date', '<', today())
-                ->where('status', '!=', 'completed')
-                ->count(),
+            'overdueProjectCount' => $overdueProjectCountQuery->count(),
             'overdueTaskCount' => $healthSummary['overdue_tasks_total'],
             'totalBudget' => $totalBudget,
             'totalSpent' => $totalSpent,
             'remainingBudget' => $totalBudget - $totalSpent,
-            'overallCompletion' => (int) round(Project::query()->avg('progress') ?? 0),
+            'overallCompletion' => (int) round($averageProgressQuery->avg('progress') ?? 0),
 
-            'projects' => Project::query()
-                ->withCount(['tasks', 'tasks as completed_tasks_count' => fn ($query) => $query->where('status', 'completed'), 'projectResources'])
-                ->withHealthMetrics()
-                ->latest()->take(6)->get(),
-            'tasks' => Task::query()->with(['project:id,name', 'assignee:id,name'])->orderByRaw('due_date asc nulls last')->latest()->take(6)->get(),
-            'milestones' => Milestone::query()->with('project:id,name')->whereDate('due_date', '>=', today())
-                ->orderBy('due_date')->take(5)->get(),
-            'risks' => Risk::query()->with('project:id,name')->where('status', 'open')->latest()->take(4)->get(),
-            'teamMembers' => ProjectResource::query()->with([
-                'user' => fn ($query) => $query->select('id', 'name', 'job_title', 'avatar', 'availability_percent')->withCount('assignedTasks'),
-                'project:id,name',
-            ])->latest()->take(5)->get(),
+            'projects' => $projectsQuery->get(),
+            'tasks' => $tasksQuery->get(),
+            'milestones' => $milestonesQuery->get(),
+            'risks' => $risksQuery->get(),
+            'teamMembers' => $teamMembersQuery->get(),
+
             'monthlyTarget' => [
-                'new' => Project::query()->whereBetween('created_at', [$today->copy()->startOfMonth(), $today->copy()->endOfMonth()])->count(),
-                'completed' => Project::query()->where('status', 'completed')->count(),
-                'active' => Project::query()->whereIn('status', ['in-progress', 'planning', 'on-hold'])->count(),
+                'new' => $newProjectCountQuery->count(),
+                'completed' => $completedProjectCountQuery->count(),
+                'active' => Project::query()
+                    ->when(
+                        $visibleProjectIds !== null,
+                        fn ($query) => $query->whereIn('id', $visibleProjectIds)
+                    )
+                    ->whereIn('status', ['in-progress', 'planning', 'on-hold'])
+                    ->count(),
                 'total' => $projectCount,
             ],
-            'activityMonths' => $months->map(fn (Carbon $month) => $month->format('M'))->all(),
-            'projectActivity' => $months->map(fn (Carbon $month) => Project::query()->whereBetween('created_at', [$month, $month->copy()->endOfMonth()])->count())->all(),
-            'taskActivity' => $months->map(fn (Carbon $month) => Task::query()->whereBetween('created_at', [$month, $month->copy()->endOfMonth()])->count())->all(),
-            'thisWeekTasks' => collect(range(0, 6))->map(fn (int $day) => Task::query()->whereDate('created_at', $weekStart->copy()->addDays($day))->count())->all(),
-            'lastWeekTasks' => collect(range(0, 6))->map(fn (int $day) => Task::query()->whereDate('created_at', $lastWeekStart->copy()->addDays($day))->count())->all(),
+
+            'activityMonths' => $months->map(
+                fn (Carbon $month) => $month->format('M')
+            )->all(),
+
+            'projectActivity' => $projectActivity,
+            'taskActivity' => $taskActivity,
+            'thisWeekTasks' => $thisWeekTasks,
+            'lastWeekTasks' => $lastWeekTasks,
         ]);
     }
-
     public function projects(Request $request)
     {
         $search = trim((string) $request->query('search'));
+        $user = $request->user();
+        $visibleProjectIds = ProjectAccess::visibleProjectIds($user);
+
+        $query = Project::query()
+            ->when($visibleProjectIds !== null, fn ($query) => $query->whereIn('id', $visibleProjectIds))
+            ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+            ->withHealthMetrics()
+            ->latest();
 
         return view('projects.index', [
-            'projects' => Project::query()
-                ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
-                ->withHealthMetrics()
-                ->latest()->paginate(12)->withQueryString(),
+            'projects' => $query->paginate(12)->withQueryString(),
         ]);
     }
 
@@ -115,11 +262,63 @@ class TrackerController extends Controller
         $needle = Str::lower($term);
         $pages = collect($this->searchablePages())->filter(fn (array $page) => Str::contains(Str::lower(implode(' ', [$page['title'], $page['description'], $page['keywords']])), $needle))
             ->map(fn (array $page) => ['category' => 'Pages', 'type' => 'Page', 'title' => $page['title'], 'meta' => $page['description'], 'url' => route($page['route'])]);
-        $projects = Project::query()->where('name', 'like', '%'.$term.'%')->limit(5)->get()->map(fn (Project $project) => ['category' => 'Data', 'type' => 'Project', 'title' => $project->name, 'meta' => ucfirst($project->status), 'url' => route('projects.show', $project)]);
-        $tasks = Task::query()->with('project:id,name')->where('title', 'like', '%'.$term.'%')->limit(5)->get()->map(fn (Task $task) => ['category' => 'Data', 'type' => 'Task', 'title' => $task->title, 'meta' => $task->project?->name ?? 'No project', 'url' => route('web.tasks.edit', $task->id)]);
-        $sprints = Sprint::query()->with('project:id,name')->where('name', 'like', '%'.$term.'%')->limit(5)->get()->map(fn (Sprint $sprint) => ['category' => 'Data', 'type' => 'Sprint', 'title' => $sprint->name, 'meta' => $sprint->project?->name ?? 'No project', 'url' => route('web.sprints.edit', $sprint->id)]);
-        $milestones = Milestone::query()->with('project:id,name')->where('name', 'like', '%'.$term.'%')->limit(5)->get()->map(fn (Milestone $milestone) => ['category' => 'Data', 'type' => 'Milestone', 'title' => $milestone->name, 'meta' => $milestone->project?->name ?? 'No project', 'url' => route('web.milestones.edit', $milestone->id)]);
-        $risks = Risk::query()->with('project:id,name')->where('title', 'like', '%'.$term.'%')->limit(5)->get()->map(fn (Risk $risk) => ['category' => 'Data', 'type' => 'Risk', 'title' => $risk->title, 'meta' => $risk->project?->name ?? 'No project', 'url' => route('web.risks.edit', $risk->id)]);
+        $projectsQuery = Project::query()
+            ->where('name', 'like', '%'.$term.'%');
+
+        $visibleProjectIds = ProjectAccess::visibleProjectIds($request->user());
+
+        if ($visibleProjectIds !== null) {
+            $projectsQuery->whereIn('id', $visibleProjectIds);
+        }
+
+        $projects = $projectsQuery
+            ->limit(5)
+            ->get()
+            ->map(fn (Project $project) => ['category' => 'Data', 'type' => 'Project', 'title' => $project->name, 'meta' => ucfirst($project->status), 'url' => route('projects.show', $project)]);
+
+        $tasksQuery = Task::query()
+            ->with('project:id,name')
+            ->where('title', 'like', '%'.$term.'%');
+
+        ProjectAccess::limitToVisible($tasksQuery, $request->user());
+
+        $tasks = $tasksQuery
+            ->limit(5)
+            ->get()
+            ->map(fn (Task $task) => ['category' => 'Data', 'type' => 'Task', 'title' => $task->title, 'meta' => $task->project?->name ?? 'No project', 'url' => route('web.tasks.edit', $task->id)]);
+
+        $sprintsQuery = Sprint::query()
+            ->with('project:id,name')
+            ->where('name', 'like', '%'.$term.'%');
+
+        ProjectAccess::limitToVisible($sprintsQuery, $request->user());
+
+        $sprints = $sprintsQuery
+            ->limit(5)
+            ->get()
+            ->map(fn (Sprint $sprint) => ['category' => 'Data', 'type' => 'Sprint', 'title' => $sprint->name, 'meta' => $sprint->project?->name ?? 'No project', 'url' => route('web.sprints.edit', $sprint->id)]);
+
+        $milestonesQuery = Milestone::query()
+            ->with('project:id,name')
+            ->where('name', 'like', '%'.$term.'%');
+
+        ProjectAccess::limitToVisible($milestonesQuery, $request->user());
+
+        $milestones = $milestonesQuery
+            ->limit(5)
+            ->get()
+            ->map(fn (Milestone $milestone) => ['category' => 'Data', 'type' => 'Milestone', 'title' => $milestone->name, 'meta' => $milestone->project?->name ?? 'No project', 'url' => route('web.milestones.edit', $milestone->id)]);
+
+        $risksQuery = Risk::query()
+            ->with('project:id,name')
+            ->where('title', 'like', '%'.$term.'%');
+
+        ProjectAccess::limitToVisible($risksQuery, $request->user());
+
+        $risks = $risksQuery
+            ->limit(5)
+            ->get()
+            ->map(fn (Risk $risk) => ['category' => 'Data', 'type' => 'Risk', 'title' => $risk->title, 'meta' => $risk->project?->name ?? 'No project', 'url' => route('web.risks.edit', $risk->id)]);
 
         return response()->json(['results' => $pages->concat($projects)->concat($tasks)->concat($sprints)->concat($milestones)->concat($risks)->values()]);
     }
@@ -232,9 +431,15 @@ class TrackerController extends Controller
 
     public function feature(string $feature)
     {
+        $request = request();
         $definition = TrackerFeatures::get($feature);
-        $items = $definition['model']::query()
-            ->with($definition['with'])
+
+        $query = $definition['model']::query()
+            ->with($definition['with']);
+
+        ProjectAccess::limitToVisible($query, $request->user());
+
+        $items = $query
             ->latest()
             ->paginate(15);
 
@@ -250,7 +455,21 @@ class TrackerController extends Controller
 
     public function createFeature(string $feature)
     {
+        $request = request();
         $definition = TrackerFeatures::get($feature);
+        $user = $request->user();
+        $visibleProjectIds = ProjectAccess::visibleProjectIds($user);
+
+        $projects = Project::query()
+            ->when($visibleProjectIds !== null, fn ($query) => $query->whereIn('id', $visibleProjectIds))
+            ->orderBy('name')
+            ->get();
+
+        $tasks = Task::query()
+            ->with('project:id,name')
+            ->when($visibleProjectIds !== null, fn ($query) => $query->whereIn('project_id', $visibleProjectIds))
+            ->orderBy('title')
+            ->get();
 
         return view('features.form', [
             'title' => 'Create '.$definition['title'],
@@ -258,16 +477,27 @@ class TrackerController extends Controller
             'item' => new $definition['model'],
             'fields' => $definition['fields'],
             'prefix' => $definition['prefix'],
-            'projects' => Project::query()->orderBy('name')->get(),
+            'projects' => $projects,
             'users' => User::query()->orderBy('name')->get(),
-            'tasks' => Task::query()->orderBy('title')->get(),
+            'tasks' => $tasks,
         ]);
     }
 
     public function storeFeature(Request $request, string $feature)
     {
         $definition = TrackerFeatures::get($feature);
-        $definition['model']::query()->create($this->featureData($request, $feature));
+        $data = $this->featureData($request, $feature);
+
+        $project = !empty($data['project_id'])
+            ? Project::find($data['project_id'])
+            : null;
+
+        abort_unless(
+            ProjectAccess::canCreateIn($request->user(), $project),
+            403
+        );
+
+        $definition['model']::query()->create($data);
 
         return redirect($this->featureIndex($definition['prefix']))
             ->with('success', Str::headline($feature).' created successfully.');
@@ -275,8 +505,28 @@ class TrackerController extends Controller
 
     public function editFeature(string $feature, int $id)
     {
+        $request = request();
         $definition = TrackerFeatures::get($feature);
         $item = $definition['model']::query()->findOrFail($id);
+
+        abort_unless(
+            ProjectAccess::canManageItem($request->user(), $this->featureProject($item)),
+            403
+        );
+
+        $user = $request->user();
+        $visibleProjectIds = ProjectAccess::visibleProjectIds($user);
+
+        $projects = Project::query()
+            ->when($visibleProjectIds !== null, fn ($query) => $query->whereIn('id', $visibleProjectIds))
+            ->orderBy('name')
+            ->get();
+
+        $tasks = Task::query()
+            ->with('project:id,name')
+            ->when($visibleProjectIds !== null, fn ($query) => $query->whereIn('project_id', $visibleProjectIds))
+            ->orderBy('title')
+            ->get();
 
         return view('features.form', [
             'title' => 'Edit '.$definition['title'],
@@ -284,9 +534,9 @@ class TrackerController extends Controller
             'item' => $item,
             'fields' => $definition['fields'],
             'prefix' => $definition['prefix'],
-            'projects' => Project::query()->orderBy('name')->get(),
+            'projects' => $projects,
             'users' => User::query()->orderBy('name')->get(),
-            'tasks' => Task::query()->orderBy('title')->get(),
+            'tasks' => $tasks,
         ]);
     }
 
@@ -294,7 +544,26 @@ class TrackerController extends Controller
     {
         $definition = TrackerFeatures::get($feature);
         $item = $definition['model']::query()->findOrFail($id);
-        $item->update($this->featureData($request, $feature, $item->getKey()));
+
+        abort_unless(
+            ProjectAccess::canManageItem($request->user(), $this->featureProject($item)),
+            403
+        );
+
+        $data = $this->featureData($request, $feature, $item->getKey());
+
+        if (array_key_exists('project_id', $data)) {
+            $newProject = !empty($data['project_id'])
+                ? Project::find($data['project_id'])
+                : null;
+
+            abort_unless(
+                ProjectAccess::canCreateIn($request->user(), $newProject),
+                403
+            );
+        }
+
+        $item->update($data);
 
         return redirect($this->featureIndex($definition['prefix']))
             ->with('success', Str::headline($feature).' updated successfully.');
@@ -302,16 +571,32 @@ class TrackerController extends Controller
 
     public function deleteFeature(string $feature, int $id)
     {
+        $request = request();
         $definition = TrackerFeatures::get($feature);
-        $definition['model']::query()->findOrFail($id)->delete();
+        $item = $definition['model']::query()->findOrFail($id);
+
+        abort_unless(
+            ProjectAccess::canManageItem($request->user(), $this->featureProject($item)),
+            403
+        );
+
+        $item->delete();
 
         return redirect($this->featureIndex($definition['prefix']))
             ->with('success', Str::headline($feature).' deleted.');
     }
 
-    public function kanban()
+    public function kanban(Request $request)
     {
-        $tasks = Task::query()->with('project:id,name', 'assignee:id,name')->orderBy('position')->latest()->get();
+        $query = Task::query()
+            ->with('project:id,name', 'assignee:id,name');
+
+        ProjectAccess::limitToVisible($query, $request->user());
+
+        $tasks = $query
+            ->orderBy('position')
+            ->latest()
+            ->get();
 
         return view('features.kanban', [
             'columns' => [
@@ -324,36 +609,85 @@ class TrackerController extends Controller
 
     public function updateTaskStatus(Request $request, Task $task)
     {
+        abort_unless(
+            ProjectAccess::canManageItem($request->user(), $task->project),
+            403
+        );
+
         $data = $request->validate([
             'status' => ['required', 'in:pending,in-progress,completed'],
         ]);
+
         $task->update($data);
 
         return back()->with('success', 'Task status updated.');
     }
 
-    public function gantt()
+    public function gantt(Request $request)
     {
+        $projectsQuery = Project::query()
+            ->orderBy('start_date');
+
+        $visibleProjectIds = ProjectAccess::visibleProjectIds($request->user());
+
+        if ($visibleProjectIds !== null) {
+            $projectsQuery->whereIn('id', $visibleProjectIds);
+        }
+
         return view('features.gantt', [
-            'projects' => Project::query()->orderBy('start_date')->get(),
+            'projects' => $projectsQuery->get(),
         ]);
     }
 
-    public function analytics()
+    public function analytics(Request $request)
     {
+        $user = $request->user();
+
+        $projectCountQuery = Project::query();
+        $taskCountQuery = Task::query();
+        $completedTasksQuery = Task::query()->where('status', 'completed');
+        $openRisksQuery = Risk::query()->where('status', 'open');
+        $projectsQuery = Project::query()->latest()->take(8);
+
+        $visibleProjectIds = ProjectAccess::visibleProjectIds($user);
+
+        if ($visibleProjectIds !== null) {
+            $projectCountQuery->whereIn('id', $visibleProjectIds);
+            $projectsQuery->whereIn('id', $visibleProjectIds);
+        }
+
+        ProjectAccess::limitToVisible($taskCountQuery, $user);
+        ProjectAccess::limitToVisible($completedTasksQuery, $user);
+        ProjectAccess::limitToVisible($openRisksQuery, $user);
+
         return view('features.analytics', [
-            'projectCount' => Project::count(),
-            'taskCount' => Task::count(),
-            'completedTasks' => Task::where('status', 'completed')->count(),
-            'openRisks' => Risk::query()->where('status', 'open')->count(),
-            'projects' => Project::query()->latest()->take(8)->get(),
+            'projectCount' => $projectCountQuery->count(),
+            'taskCount' => $taskCountQuery->count(),
+            'completedTasks' => $completedTasksQuery->count(),
+            'openRisks' => $openRisksQuery->count(),
+            'projects' => $projectsQuery->get(),
         ]);
     }
 
     public function chat(Request $request)
     {
-        $channels = ChatChannel::query()->with('project:id,name')->latest()->get();
+        $user = $request->user();
+
+        $channelsQuery = ChatChannel::query()
+            ->with('project:id,name');
+
+        $visibleProjectIds = ProjectAccess::visibleProjectIds($user);
+
+        if ($visibleProjectIds === null) {
+            // Admins can see all channels.
+        } else {
+            $channelsQuery->whereIn('project_id', $visibleProjectIds);
+        }
+
+        $channels = $channelsQuery->latest()->get();
+
         $active = $channels->firstWhere('id', (int) $request->query('channel')) ?? $channels->first();
+
         $messages = $active
             ? $active->messages()->with('user:id,name')->latest()->take(50)->get()->reverse()
             : collect();
@@ -367,6 +701,16 @@ class TrackerController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'project_id' => ['nullable', 'exists:projects,id'],
         ]);
+
+        $project = !empty($data['project_id'])
+            ? Project::find($data['project_id'])
+            : null;
+
+        abort_unless(
+            ProjectAccess::canCreateIn($request->user(), $project),
+            403
+        );
+
         $channel = ChatChannel::query()->create($data);
 
         return redirect('/chat?channel='.$channel->id)->with('success', 'Channel created.');
@@ -374,13 +718,20 @@ class TrackerController extends Controller
 
     public function storeMessage(Request $request, ChatChannel $channel)
     {
+        $project = $channel->project;
+
+        abort_unless(
+            ProjectAccess::canViewItem($request->user(), $project),
+            403
+        );
+
         $data = $request->validate([
             'message' => ['required', 'string'],
         ]);
 
         ChatMessage::query()->create([
             'chat_channel_id' => $channel->id,
-            'user_id' => $this->defaultUserId(),
+            'user_id' => $request->user()->id,
             'message' => $data['message'],
         ]);
 
@@ -446,26 +797,26 @@ class TrackerController extends Controller
         }
 
         if ($feature === 'risks') {
-            $data['owner_id'] = $data['owner_id'] ?? $this->defaultUserId();
+            $data['owner_id'] = $data['owner_id'] ?? request()->user()->id;
             $data['category'] = $data['category'] ?? 'technical';
         }
 
         if ($feature === 'changes') {
-            $data['requestor_id'] = $data['requestor_id'] ?? $this->defaultUserId();
+            $data['requestor_id'] = $data['requestor_id'] ?? request()->user()->id;
         }
 
         if ($feature === 'documents') {
-            $data['uploaded_by'] = $data['uploaded_by'] ?? $this->defaultUserId();
+            $data['uploaded_by'] = $data['uploaded_by'] ?? request()->user()->id;
             $data['file_path'] = $data['file_path'] ?: 'documents/'.Str::slug($data['name']);
             $data['size'] = $data['size'] ?: '0 KB';
         }
 
         if ($feature === 'time') {
-            $data['user_id'] = $data['user_id'] ?? $this->defaultUserId();
+            $data['user_id'] = $data['user_id'] ?? request()->user()->id;
         }
 
         if ($feature === 'team') {
-            $data['user_id'] = $data['user_id'] ?? $this->defaultUserId();
+            $data['user_id'] = $data['user_id'] ?? request()->user()->id;
         }
 
         return $data;
@@ -605,19 +956,11 @@ class TrackerController extends Controller
         };
     }
 
-    private function defaultUserId(): int
-    {
-        $id = User::query()->value('id');
-        if ($id) {
-            return (int) $id;
-        }
 
-        return User::query()->create([
-            'name' => 'Project Tracker',
-            'email' => 'tracker@example.com',
-            'password' => 'password',
-            'role' => 'admin',
-        ])->id;
+    private function featureProject(object $item): ?Project
+    {
+        return !empty($item->project_id)
+            ? Project::find($item->project_id)
+            : null;
     }
 }
-
