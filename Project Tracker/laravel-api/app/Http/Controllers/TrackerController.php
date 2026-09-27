@@ -765,9 +765,9 @@ class TrackerController extends Controller
     private function projectMembersData(Request $request): array
     {
         return $request->validate([
-            'members' => ['required', 'array', 'min:2'],
+            'members' => ['nullable', 'array'],
             'members.*' => ['integer', 'distinct', 'exists:users,id'],
-        ])['members'];
+        ])['members'] ?? [];
     }
 
     private function teamOptions(): array

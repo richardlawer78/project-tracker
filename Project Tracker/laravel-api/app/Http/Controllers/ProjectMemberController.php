@@ -38,6 +38,12 @@ class ProjectMemberController extends Controller
             }
         } else {
             $user = User::findOrFail($data['user_id']);
+
+            abort_unless(
+                $user->role !== 'investor',
+                422,
+                'Investors cannot be added to internal project teams.'
+            );
         }
 
         $alreadyMember = $project->members()
@@ -80,6 +86,12 @@ class ProjectMemberController extends Controller
             : 'member';
 
         $user = $request->user();
+
+        abort_unless(
+            $user && $user->role !== 'investor',
+            403,
+            'Investors cannot be added to internal project teams.'
+        );
 
         $alreadyMember = $project->members()
             ->where('users.id', $user->id)

@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title', $project->exists ? 'Edit project' : 'New project')
 
@@ -507,23 +507,19 @@
                     </div>
 
                     <div class="project-form-field">
-                        <label for="project-team">Team</label>
 
-                        <select id="project-team" name="team">
-                            <option value="">Select a team</option>
-
-                            @foreach($teams as $team)
-                                <option
-                                    value="{{ $team }}"
-                                    @selected(old('team', $project->team) === $team)
-                                >
-                                    {{ $team }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <label for="project-team">Team <span class="text-muted">(optional)</span></label>
+                        <input
+                            id="project-team"
+                            name="team"
+                            type="text"
+                            value="{{ old('team', $project->team) }}"
+                            maxlength="255"
+                            placeholder="Enter a team name, or leave blank"
+                        >
 
                         <small class="project-form-help">
-                            Choose the team responsible for delivering this project.
+                            You can create the project without a team and assign users afterward.
                         </small>
                     </div>
 
