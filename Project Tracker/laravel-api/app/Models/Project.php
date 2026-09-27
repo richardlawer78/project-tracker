@@ -30,6 +30,9 @@ class Project extends Model
         'progress',
         'settings',
         'methodology', 'sprint_duration', 'sprint_goal', 'velocity', 'phases', 'milestones_text', 'deliverables',
+        'open_for_investment',
+        'funding_target',
+        'funding_raised',
     ];
 
     protected function casts(): array
@@ -40,6 +43,9 @@ class Project extends Model
             'budget' => 'decimal:2',
             'spent' => 'decimal:2',
             'settings' => 'array',
+            'open_for_investment' => 'boolean',
+            'funding_target' => 'decimal:2',
+            'funding_raised' => 'decimal:2',
         ];
     }
 
@@ -57,6 +63,23 @@ class Project extends Model
 
     public function tasks(): HasMany { return $this->hasMany(Task::class); }
 
+    /**
+     * Progress is never hand-entered — it always reflects what the team
+     * has actually completed. Call this any time a task under this project
+     * is created, updated, deleted, or has its status changed.
+     */
+    public function recalculateProgress(): void
+    {
+        $total = $this->tasks()->count();
+        $progress = $total > 0
+            ? (int) round(($this->tasks()->where('status', 'completed')->count() / $total) * 100)
+            : 0;
+
+        if ((int) $this->progress !== $progress) {
+            $this->forceFill(['progress' => $progress])->saveQuietly();
+        }
+    }
+
     public function sprints(): HasMany { return $this->hasMany(Sprint::class); }
     public function backlogItems(): HasMany { return $this->hasMany(BacklogItem::class); }
     public function workflows(): HasMany { return $this->hasMany(Workflow::class); }
@@ -64,10 +87,8 @@ class Project extends Model
     public function budgetItems(): HasMany { return $this->hasMany(BudgetItem::class); }
     public function timeEntries(): HasMany { return $this->hasMany(TimeEntry::class); }
     public function projectResources(): HasMany { return $this->hasMany(ProjectResource::class); }
-    public function stakeholders(): HasMany { return $this->hasMany(Stakeholder::class); }    public function projectInterests(): HasMany
-    {
-        return $this->hasMany(ProjectInterest::class);
-    }
+    public function stakeholders(): HasMany { return $this->hasMany(Stakeholder::class); }
+    public function projectInterests(): HasMany { return $this->hasMany(ProjectInterest::class); }
     public function kickoffs(): HasMany { return $this->hasMany(Kickoff::class); }
     public function dorDodItems(): HasMany { return $this->hasMany(DorDodItem::class); }
     public function testCases(): HasMany { return $this->hasMany(TestCase::class); }
@@ -78,7 +99,7 @@ class Project extends Model
     public function chatChannels(): HasMany { return $this->hasMany(ChatChannel::class); }
 
     /**
-     * Derived delivery health — never stored, always computed from real
+     * Derived delivery health - never stored, always computed from real
      * schedule/task/budget data. See App\Support\ProjectHealth.
      *
      * @return array{key: string, label: string, slug: string, reasons: array<int, string>}
@@ -95,5 +116,20 @@ class Project extends Model
     public function scopeWithHealthMetrics(Builder $query): Builder
     {
         return ProjectHealth::eagerLoad($query);
+    }
+
+    /**
+     * 0-100, or null if no funding target has been set. Never over 100
+     * even if funding_raised exceeds the target.
+     */
+    public function getFundingProgressPercentAttribute(): ?int
+    {
+        $target = (float) ($this->funding_target ?? 0);
+
+        if ($target <= 0) {
+            return null;
+        }
+
+        return (int) min(100, round(((float) ($this->funding_raised ?? 0) / $target) * 100));
     }
 }

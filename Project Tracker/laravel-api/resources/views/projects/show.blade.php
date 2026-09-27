@@ -1,4 +1,4 @@
-ï»¿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title', $project->name)
 
@@ -1361,7 +1361,7 @@ body.dark .pd-health-panel {
                         href="{{ route('projects.index') }}"
                         class="pd-btn"
                     >
-                        Î“Ã¥Ã‰ Projects
+                        GåÉ Projects
                     </a>
 
                     <a
@@ -1468,7 +1468,7 @@ body.dark .pd-health-panel {
                 <strong class="pd-stat-value">
 
                     @if($daysLeft === null)
-                        Î“Ã‡Ã¶
+                        GÇö
                     @elseif($daysLeft > 0)
                         {{ $daysLeft }} days
                     @elseif($daysLeft === 0)
@@ -2454,7 +2454,7 @@ body.dark .pd-health-panel {
                     class="pd-btn"
                     style="width:100%;"
                 >
-                    Î“Ã¥Ã‰ Back to Projects
+                    GåÉ Back to Projects
                 </a>
 
             </div>
@@ -2466,3 +2466,5 @@ body.dark .pd-health-panel {
 </div>
 
 @endsection
+
+

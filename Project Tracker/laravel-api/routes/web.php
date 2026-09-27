@@ -1,9 +1,12 @@
- <?php
+<?php
 
 use App\Http\Controllers\TrackerController;
 use App\Http\Controllers\WebAuthController;
+use App\Http\Controllers\InvestorDashboardController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\AdminProjectInterestController;
+use App\Http\Controllers\PublicProjectInterestController;
 use App\Http\Controllers\ProjectMemberController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectReportController;
@@ -16,6 +19,10 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
+Route::get('/forgot-password', [WebAuthController::class, 'showForgotPassword'])->name('password.request');
+Route::get('/reset-password/{token}', [WebAuthController::class, 'showResetPassword'])->name('password.reset');
+Route::post('/reset-password', [WebAuthController::class, 'resetPassword'])->name('password.update');
+Route::post('/forgot-password', [WebAuthController::class, 'sendResetLink'])->name('password.email');
 Route::get('/login', [WebAuthController::class, 'showLogin'])->name('login');
 
 Route::post('/login', [WebAuthController::class, 'login']);
@@ -23,8 +30,25 @@ Route::post('/login', [WebAuthController::class, 'login']);
 Route::get('/signup', [WebAuthController::class, 'showRegister'])->name('signup');
 
 Route::post('/signup', [WebAuthController::class, 'register']);
+Route::get('/investor/register', [WebAuthController::class, 'showInvestorRegister'])
+    ->name('investor.register');
+
+Route::post('/investor/register', [WebAuthController::class, 'registerInvestor']);
+
 
 Route::post('/logout', [WebAuthController::class, 'logout'])->name('logout');
+
+// Public investment pages - anyone can browse projects marked "open for
+// investment" and submit an interest form, no account needed.
+Route::get('/public/projects', [TrackerController::class, 'publicProjects'])
+    ->name('projects.public.index');
+
+Route::get('/public/projects/{project}', [TrackerController::class, 'showPublicProject'])
+    ->name('projects.public.show');
+
+Route::post('/public/projects/{project}/interest', [PublicProjectInterestController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('projects.public.interest');
 
 /*
 |--------------------------------------------------------------------------
@@ -38,28 +62,44 @@ Route::post('/logout', [WebAuthController::class, 'logout'])->name('logout');
 |--------------------------------------------------------------------------
 */
 
-    Route::get('/public/projects/{project}', [TrackerController::class, 'showPublicProject'])
-        ->name('projects.public.show');        Route::post('/public/projects/{project}/interest', [\App\Http\Controllers\PublicProjectInterestController::class, 'store'])
-        ->middleware('throttle:10,1')
-        ->name('projects.public.interest');    Route::middleware('auth')->group(function () {
+Route::middleware('auth')->group(function () {
+    Route::middleware('auth')->prefix('investor')->name('investor.')->group(function () {
+        Route::get('/dashboard', [InvestorDashboardController::class, 'index'])
+            ->name('dashboard');
 
-    // Project Tracker Dashboard
+        Route::get('/projects/{project}', [InvestorDashboardController::class, 'showProject'])
+            ->name('projects.show');
+    });
 
-    Route::get('/', [TrackerController::class, 'dashboard'])->name('dashboard');
 
-    Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
+    Route::middleware('internal')->group(function () {
+
+        // Project Tracker Dashboard
+
+        Route::get('/', [TrackerController::class, 'dashboard'])->name('dashboard');
+
+        Route::get('/admin/dashboard', [AdminDashboardController::class, 'index'])
         ->middleware('admin')
         ->name('admin.dashboard');
 
-    // Admin User Management
+        // Admin User Management
 
     Route::middleware('admin')
         ->prefix('admin')
         ->name('admin.')
         ->group(function () {
-            Route::resource('users', AdminUserController::class)
-                ->except(['show']);
+            Route::resource('users', AdminUserController::class)->except(['show']);
+
+            Route::resource('interests', AdminProjectInterestController::class)->only(['index', 'show', 'update', 'destroy']);
         });
+
+    // Forced password change (after an admin-issued temporary password)
+
+    Route::get('/change-password', [WebAuthController::class, 'showChangePassword'])
+        ->name('password.change');
+
+    Route::post('/change-password', [WebAuthController::class, 'changePassword'])
+        ->name('password.change.update');
 
     // My profile (profile picture, name, job title)
 
@@ -190,18 +230,5 @@ Route::post('/logout', [WebAuthController::class, 'logout'])->name('logout');
         )->whereNumber('id')
             ->name("web.{$feature}.destroy");
     }
+    });
 });
-
-    Route::get('/public/projects/{project}', [TrackerController::class, 'showPublicProject'])
-        ->name('projects.public.show');        Route::post('/public/projects/{project}/interest', [\App\Http\Controllers\PublicProjectInterestController::class, 'store'])
-        ->middleware('throttle:10,1')
-        ->name('projects.public.interest');    Route::middleware('auth')->group(function () {
-    Route::get('/change-password', [WebAuthController::class, 'showChangePassword'])
-        ->name('password.change');
-
-    Route::post('/change-password', [WebAuthController::class, 'changePassword'])
-        ->name('password.change.update');
-});
-
-
-

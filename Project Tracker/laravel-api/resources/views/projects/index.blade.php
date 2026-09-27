@@ -1,4 +1,3 @@
-﻿ @'
 @extends('layouts.app')
 
 @section('title', 'Projects')
@@ -786,7 +785,7 @@
                                     class="open-project"
                                     href="{{ route('projects.show', $project) }}"
                                 >
-                                    Open →
+                                    ppen ?
                                 </a>
 
                             </td>
@@ -836,4 +835,4 @@
 </div>
 
 @endsection
-'@ | Set-Content -Path "resources\views\projects\index.blade.php" -Encoding UTF8
+

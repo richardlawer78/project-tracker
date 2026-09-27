@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -18,7 +18,7 @@
     <aside class="sidebar" id="project-sidebar" aria-label="Main navigation">
 
         <a class="brand"
-           href="{{ route('dashboard') }}"
+           href="{{ auth()->user()?->role === 'investor' ? route('investor.dashboard') : route('dashboard') }}"
            aria-label="Project Tracker home">
 
             <img
@@ -29,17 +29,17 @@
         </a>
 
         <nav>
-
             {{-- DASHBOARD --}}
-            <a href="{{ route('dashboard') }}"
-               class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+            @if(auth()->user()?->role !== 'investor')
+                <a href="{{ route('dashboard') }}"
+                   class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                    <i class="nav-icon ri-home-line" aria-hidden="true"></i>
+                    Dashboard
+                </a>
+            @endif
 
-                <i class="nav-icon ri-home-line" aria-hidden="true"></i>
 
-                Dashboard
-
-            </a>
-
+            @unless(auth()->user()?->role === 'investor')
 
             {{-- ADMIN NAVIGATION --}}
             @if(auth()->check() && auth()->user()->role === 'admin')
@@ -62,6 +62,15 @@
 
                 </a>
 
+
+
+                <a href="{{ route('admin.interests.index') }}" class="{{ request()->routeIs('admin.interests.*') ? 'active' : '' }}">
+
+                    <i class="nav-icon ri-hand-coin-line" aria-hidden="true"></i>
+
+                    Investment Interests
+
+                </a>
             @endif
 
 
@@ -475,6 +484,22 @@
 
             </a>
 
+            @else
+
+                <a href="{{ route('investor.dashboard') }}" class="{{ request()->routeIs('investor.dashboard') ? 'active' : '' }}">
+                    <i class="nav-icon ri-home-line" aria-hidden="true"></i>
+                    Investor Dashboard
+                </a>
+
+                <div class="sidebar-group">
+                    <a href="{{ route('investor.dashboard') }}" class="{{ request()->routeIs('investor.dashboard') ? 'active' : '' }}">
+                        <i class="nav-icon ri-folder-line" aria-hidden="true"></i>
+                        All Projects
+                    </a>
+                </div>
+
+            @endunless
+
         </nav>
 
     </aside>
@@ -491,7 +516,7 @@
 
             <a
                 class="header-brand"
-                href="{{ route('dashboard') }}"
+                href="{{ auth()->user()?->role === 'investor' ? route('investor.dashboard') : route('dashboard') }}"
                 aria-label="Project Tracker home"
             >
 
