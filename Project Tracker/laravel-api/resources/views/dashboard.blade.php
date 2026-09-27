@@ -1918,12 +1918,15 @@
 
         <div>
 
-            <a
-                class="button"
-                href="{{ route('projects.create') }}"
-            >
-                New project
-            </a>
+            @if(\App\ProjectAccess::canCreate(auth()->user()))
+
+                <a class="button" href="{{ route('projects.create') }}">
+
+                    New project
+
+                </a>
+
+            @endif
 
             <a
                 class="button secondary"
