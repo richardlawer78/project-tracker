@@ -1,4 +1,4 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('title', 'User Management')
 
@@ -401,7 +401,7 @@
                             </td>
 
                             <td>
-                                {{ $user->job_title ?? 'â€”' }}
+                                {{ $user->job_title ?? 'Not set' }}
                             </td>
 
                             <td>
@@ -419,7 +419,7 @@
                                         </span>
                                     </div>
                                 @else
-                                    â€”
+                                    Not set
                                 @endif
                             </td>
 
